@@ -882,6 +882,23 @@ def _inject_component_styles(theme: str) -> None:
             visibility: hidden !important;
             height: 0 !important;
         }
+
+        /* Keep sidebar toggle reachable on mobile after hiding chrome */
+        [data-testid="stSidebarCollapsedControl"],
+        [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
+        [data-testid="stSidebar"] button[kind="icon"],
+        .stSidebarCollapsedControl {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] {
+            position: fixed !important;
+            top: 0.6rem !important;
+            left: 0.6rem !important;
+            z-index: 999999 !important;
+        }
+
         [data-testid="stAppViewContainer"] {
             background: var(--bg-2) !important;
         }

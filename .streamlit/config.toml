@@ -1,0 +1,21 @@
+[client]
+showSidebarNavigation = true
+
+[theme]
+base = "light"
+primaryColor = "#1DB954"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F5F5"
+textColor = "#1A1A1A"
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+fastReruns = true
