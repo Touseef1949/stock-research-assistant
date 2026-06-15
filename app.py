@@ -2107,10 +2107,42 @@ def _inject_mobile_styles() -> None:
                     var nativeToggle = document.querySelector('button[data-testid=\"stBaseButton-headerNoPadding\"], button[data-testid=\"stExpandSidebarButton\"]');
                     if (nativeToggle) { nativeToggle.click(); }
                 });
-                document.body.appendChild(btn);
+                if (document.body) {
+                    document.body.appendChild(btn);
+                } else {
+                    window.addEventListener('DOMContentLoaded', function() { document.body.appendChild(btn); });
+                }
             }
-            createMobileMenu();
-            window.addEventListener('resize', createMobileMenu);
+            function ensureMobileMenu() {
+                if (window.innerWidth > 768) {
+                    var old = document.getElementById('sra-mobile-menu-btn');
+                    if (old) old.remove();
+                    return;
+                }
+                if (!document.getElementById('sra-mobile-menu-btn')) createMobileMenu();
+            }
+            // Initial creation
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', ensureMobileMenu);
+            } else {
+                ensureMobileMenu();
+            }
+            // Re-create if Streamlit's frontend removes it during re-render
+            var observer = new MutationObserver(function(mutations) {
+                if (window.innerWidth <= 768 && !document.getElementById('sra-mobile-menu-btn')) {
+                    createMobileMenu();
+                }
+            });
+            if (document.body) observer.observe(document.body, {childList: true, subtree: true});
+            else window.addEventListener('DOMContentLoaded', function() { observer.observe(document.body, {childList: true, subtree: true}); });
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    var old = document.getElementById('sra-mobile-menu-btn');
+                    if (old) old.remove();
+                } else {
+                    ensureMobileMenu();
+                }
+            });
         })();
         </script>
         """,
