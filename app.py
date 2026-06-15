@@ -1974,7 +1974,7 @@ def _inject_mobile_styles() -> None:
                 color: var(--muted);
                 font-size: 0.78rem;
                 line-height: 1.35;
-                margin-top: 0.6rem;
+                margin: 0.6rem 0 0 0 !important;
                 overflow-wrap: anywhere;
                 text-align: center;
                 word-break: normal;
@@ -1982,8 +1982,8 @@ def _inject_mobile_styles() -> None:
             @media (max-width: 768px) {
                 .hero-pricing-caption {
                     font-size: 0.82rem;
-                    margin-top: 0.75rem;
-                    padding: 0 0.25rem;
+                    margin: 0.75rem 0 0 0 !important;
+                    padding-left: 0.25rem;
                     text-align: left;
                 }
             }
@@ -3875,7 +3875,7 @@ def render_hero_action(symbol: str) -> bool:
         disabled=(not symbol.strip()),
     )
     st.markdown(
-        '<div class="hero-pricing-caption">Free: 5 reports · Pro: 100 reports · ₹199/mo</div>',
+        '<p class="hero-pricing-caption" style="margin-left:0; padding-left:0.5rem;">Free: 5 reports · Pro: 100 reports · ₹199/mo</p>',
         unsafe_allow_html=True,
     )
     return clicked
