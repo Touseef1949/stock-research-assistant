@@ -12,7 +12,6 @@ from typing import Any, Callable
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 import streamlit_shadcn_ui as ui
 
 from logic import resolve_ticker
@@ -873,21 +872,46 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* ── Production polish pass: chrome, sidebar reachability, and dashboard depth ── */
-        /* Make the sidebar reachable on mobile by exposing its native toggle */
+        /* Mobile: expose a 96px left rail so Streamlit's native sidebar toggle is easy to tap. */
         @media (max-width: 768px) {
             [data-testid="stSidebar"] {
-                width: 320px !important;
-                transform: translateX(-260px) !important;
+                width: min(340px, 88vw) !important;
+                max-width: 88vw !important;
+                transform: translateX(calc(-1 * (min(340px, 88vw) - 96px))) !important;
                 transition: transform 0.25s ease !important;
+                z-index: 999998 !important;
             }
             [data-testid="stSidebar"][aria-expanded="true"] {
                 transform: translateX(0) !important;
             }
             [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
-                position: absolute !important;
-                top: 0.6rem !important;
-                right: 0.6rem !important;
+                align-items: center !important;
+                display: flex !important;
+                height: 56px !important;
+                justify-content: center !important;
                 left: auto !important;
+                min-height: 56px !important;
+                min-width: 56px !important;
+                position: absolute !important;
+                right: 0.75rem !important;
+                top: 0.5rem !important;
+                width: 56px !important;
+                z-index: 999999 !important;
+            }
+            [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] button,
+            [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] [role="button"] {
+                align-items: center !important;
+                border-radius: 14px !important;
+                display: flex !important;
+                height: 56px !important;
+                justify-content: center !important;
+                min-height: 56px !important;
+                min-width: 56px !important;
+                width: 56px !important;
+            }
+            [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] span {
+                font-size: 1.65rem !important;
+                line-height: 1 !important;
             }
         }
 
@@ -1963,10 +1987,17 @@ def _inject_mobile_styles() -> None:
                 min-height: 44px !important;
             }
 
-            /* Sidebar on mobile */
+            /* Sidebar on mobile: keep a 96px rail exposed without covering the first column of content */
+            .block-container {
+                padding-left: calc(96px + 0.75rem) !important;
+            }
             [data-testid="stSidebar"] {
-                width: 85vw !important;
-                max-width: 320px !important;
+                width: min(340px, 88vw) !important;
+                max-width: 88vw !important;
+                transform: translateX(calc(-1 * (min(340px, 88vw) - 96px))) !important;
+            }
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                transform: translateX(0) !important;
             }
             [data-testid="stSidebar"] .block-container {
                 padding-left: 0.75rem !important;
@@ -2026,93 +2057,6 @@ def _inject_mobile_styles() -> None:
         </style>
         """,
         unsafe_allow_html=True,
-    )
-    components.html(
-        """
-        <style>
-        .sra-mobile-toggle-wrapper {
-            align-items: center;
-            background: #fff;
-            border: 1px solid #E8E8E8;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            cursor: pointer;
-            display: none;
-            height: 2.75rem;
-            justify-content: center;
-            left: 0.6rem;
-            pointer-events: auto;
-            position: fixed;
-            top: 0.6rem;
-            width: 2.75rem;
-            z-index: 999999;
-        }
-        .sra-mobile-toggle-wrapper button {
-            align-items: center !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            color: #1A1A1A !important;
-            display: flex !important;
-            height: 100% !important;
-            justify-content: center !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: static !important;
-            width: 100% !important;
-        }
-        @media (max-width: 768px) {
-            .sra-mobile-toggle-wrapper { display: flex !important; }
-        }
-        @media (min-width: 769px) {
-            .sra-mobile-toggle-wrapper { display: none !important; }
-        }
-        </style>
-        <script>
-        (function() {
-            function ensureMobileToggle() {
-                if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-toggle-wrapper');
-                    if (old) old.remove();
-                    return;
-                }
-                var wrapper = document.getElementById('sra-mobile-toggle-wrapper');
-                if (!wrapper) {
-                    wrapper = document.createElement('div');
-                    wrapper.id = 'sra-mobile-toggle-wrapper';
-                    wrapper.className = 'sra-mobile-toggle-wrapper';
-                    wrapper.setAttribute('aria-label', 'Open menu');
-                    document.body.appendChild(wrapper);
-                }
-                var native = document.querySelector('button[data-testid=\"stBaseButton-headerNoPadding\"], button[data-testid=\"stExpandSidebarButton\"]');
-                if (native && native.parentElement !== wrapper) {
-                    wrapper.innerHTML = '';
-                    wrapper.appendChild(native);
-                }
-            }
-            function init() {
-                if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-toggle-wrapper');
-                    if (old) old.remove();
-                    return;
-                }
-                ensureMobileToggle();
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
-            var observer = new MutationObserver(function() {
-                if (window.innerWidth <= 768) ensureMobileToggle();
-            });
-            if (document.body) observer.observe(document.body, {childList: true, subtree: true});
-            else window.addEventListener('DOMContentLoaded', function() { observer.observe(document.body, {childList: true, subtree: true}); });
-            window.addEventListener('resize', init);
-        })();
-        </script>
-        """,
-        height=0,
     )
 
 def init_state() -> None:
