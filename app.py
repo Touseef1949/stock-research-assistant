@@ -884,19 +884,36 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* Keep sidebar toggle reachable on mobile after hiding chrome */
-        [data-testid="stSidebarCollapsedControl"],
-        [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
-        [data-testid="stSidebar"] button[kind="icon"],
-        .stSidebarCollapsedControl {
+        button[data-testid="stBaseButton-headerNoPadding"],
+        button[data-testid="stExpandSidebarButton"],
+        [data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"],
+        [data-testid="stSidebar"] button[data-testid="stExpandSidebarButton"] {
             display: flex !important;
             visibility: visible !important;
             opacity: 1 !important;
         }
-        [data-testid="stSidebarCollapsedControl"] {
+        button[data-testid="stBaseButton-headerNoPadding"],
+        button[data-testid="stExpandSidebarButton"] {
             position: fixed !important;
             top: 0.6rem !important;
             left: 0.6rem !important;
             z-index: 999999 !important;
+            background: var(--panel) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 10px !important;
+            box-shadow: var(--shadow) !important;
+            color: var(--text) !important;
+            width: 2.75rem !important;
+            height: 2.75rem !important;
+        }
+
+        /* When sidebar is open, move the collapse button to inside sidebar */
+        [data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"],
+        [data-testid="stSidebar"] button[data-testid="stExpandSidebarButton"] {
+            position: absolute !important;
+            top: 0.6rem !important;
+            right: 0.6rem !important;
+            left: auto !important;
         }
 
         [data-testid="stAppViewContainer"] {
