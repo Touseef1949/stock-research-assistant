@@ -883,6 +883,13 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         @media (max-width: 768px) {
+            [data-testid="stSidebar"] {
+                transform: none !important;
+            }
+            [data-testid="stSidebar"][aria-expanded="false"],
+            [data-testid="stSidebar"].st-emotion-cache-ici0d0 {
+                transform: translateX(0) !important;
+            }
             header[data-testid="stHeader"] {
                 display: flex !important;
                 visibility: visible !important;
@@ -897,11 +904,12 @@ def _inject_component_styles(theme: str) -> None:
                 z-index: 999990 !important;
                 pointer-events: none !important;
             }
-            header[data-testid="stHeader"] > *:not(button):not([data-testid="stBaseButton-headerNoPadding"]):not([data-testid="stExpandSidebarButton"]) {
+            header[data-testid="stHeader"] > *:not(button):not([data-testid="stBaseButton-headerNoPadding"]):not([data-testid="stExpandSidebarButton"]):not([data-testid="stSidebarCollapseButton"]) {
                 display: none !important;
             }
             header[data-testid="stHeader"] button[data-testid="stBaseButton-headerNoPadding"],
-            header[data-testid="stHeader"] button[data-testid="stExpandSidebarButton"] {
+            header[data-testid="stHeader"] button[data-testid="stExpandSidebarButton"],
+            [data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"] {
                 pointer-events: auto !important;
                 position: fixed !important;
                 top: 0.6rem !important;
