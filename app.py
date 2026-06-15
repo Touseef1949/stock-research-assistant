@@ -941,22 +941,9 @@ def _inject_component_styles(theme: str) -> None:
             display: flex !important;
             visibility: visible !important;
             opacity: 1 !important;
-            position: fixed !important;
-            top: 0.6rem !important;
-            left: 0.6rem !important;
-            z-index: 999999 !important;
-            background: var(--panel) !important;
-            border: 1px solid var(--border) !important;
-            border-radius: 10px !important;
-            box-shadow: var(--shadow) !important;
-            color: var(--text) !important;
-            width: 2.75rem !important;
-            height: 2.75rem !important;
-            transform: translateX(300px) !important;
-            margin: 0 !important;
         }
 
-        /* Sidebar is collapsed by default on mobile; the toggle lives in the header */
+        /* Sidebar is collapsed by default on mobile; a custom hamburger triggers it */
         [data-testid="stSidebar"] {
             transform: translateX(-100%) !important;
         }
@@ -2104,22 +2091,26 @@ def _inject_mobile_styles() -> None:
         </style>
         <script>
         (function() {
-            function ensureMobileMenu() {
-                if (window.innerWidth > 768) return;
+            function createMobileMenu() {
+                if (window.innerWidth > 768) {
+                    var old = document.getElementById('sra-mobile-menu-btn');
+                    if (old) old.remove();
+                    return;
+                }
                 if (document.getElementById('sra-mobile-menu-btn')) return;
                 var btn = document.createElement('button');
                 btn.id = 'sra-mobile-menu-btn';
                 btn.className = 'mobile-menu-btn';
                 btn.setAttribute('aria-label', 'Open menu');
-                btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+                btn.innerHTML = '<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"3\" y1=\"6\" x2=\"21\" y2=\"6\"></line><line x1=\"3\" y1=\"12\" x2=\"21\" y2=\"12\"></line><line x1=\"3\" y1=\"18\" x2=\"21\" y2=\"18\"></line></svg>';
                 btn.addEventListener('click', function() {
-                    var nativeToggle = document.querySelector('button[data-testid="stBaseButton-headerNoPadding"], button[data-testid="stExpandSidebarButton"]');
+                    var nativeToggle = document.querySelector('button[data-testid=\"stBaseButton-headerNoPadding\"], button[data-testid=\"stExpandSidebarButton\"]');
                     if (nativeToggle) { nativeToggle.click(); }
                 });
                 document.body.appendChild(btn);
             }
-            ensureMobileMenu();
-            window.addEventListener('resize', ensureMobileMenu);
+            createMobileMenu();
+            window.addEventListener('resize', createMobileMenu);
         })();
         </script>
         """,
