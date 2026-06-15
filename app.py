@@ -872,19 +872,39 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* ── Production polish pass: chrome, sidebar reachability, and dashboard depth ── */
-        /* On desktop, hide Streamlit chrome. On mobile, keep the header visible
-           so the native sidebar hamburger toggle is reachable. */
-        @media (min-width: 769px) {
-            header[data-testid="stHeader"],
-            [data-testid="stToolbar"],
-            [data-testid="stDeployButton"],
-            [data-testid="stDecoration"],
-            header[data-testid="stHeader"] [title="View fullscreen"],
-            .stDeployButton,
-            [data-testid="stStatusWidget"],
-            #MainMenu,
-            footer {
+        /* Make native Streamlit sidebar toggle visible on mobile */
+        @media (max-width: 768px) {
+            header[data-testid="stHeader"] {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 3.25rem !important;
+                min-height: 3.25rem !important;
+                z-index: 999990 !important;
+                background: transparent !important;
+                pointer-events: none !important;
+            }
+            header[data-testid="stHeader"] > *:not([data-testid="stBaseButton-headerNoPadding"]):not([data-testid="stExpandSidebarButton"]) {
                 display: none !important;
+            }
+            header[data-testid="stHeader"] button[data-testid="stBaseButton-headerNoPadding"],
+            header[data-testid="stHeader"] button[data-testid="stExpandSidebarButton"] {
+                position: absolute !important;
+                top: 0.6rem !important;
+                left: 0.6rem !important;
+                width: 2.75rem !important;
+                height: 2.75rem !important;
+                z-index: 999999 !important;
+                pointer-events: auto !important;
+                background: var(--panel) !important;
+                border: 1px solid var(--border) !important;
+                border-radius: 10px !important;
+                box-shadow: var(--shadow) !important;
+                color: var(--text) !important;
+            }
+            [data-testid="stAppViewContainer"] > .main {
+                padding-top: 3.25rem !important;
             }
         }
 
