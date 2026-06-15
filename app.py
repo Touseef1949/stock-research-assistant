@@ -2070,6 +2070,7 @@ def init_state() -> None:
         "user_email": "",
         "_auth_verified": False,
         "_otp_sent": False,
+        "_otp_email": "",
         "_session_report_count": 0,
         "_free_account_claimed": False,
         "theme": "light",
@@ -2941,27 +2942,56 @@ def _clean_email(email: str) -> str:
 
 
 def render_sidebar_access() -> str:
-    """Render sidebar access without duplicating footer plan/report details."""
+    """Render sidebar access without duplicating footer plan/report details.
+
+    Verified state is guarded so that clicking the main "Generate Report" button
+    (or any other sidebar interaction) does not accidentally reset authentication.
+    """
     if "user_email" not in st.session_state:
         st.session_state.user_email = ""
     if "_auth_verified" not in st.session_state:
         st.session_state["_auth_verified"] = False
     if "_otp_sent" not in st.session_state:
         st.session_state["_otp_sent"] = False
+    if "_otp_email" not in st.session_state:
+        st.session_state["_otp_email"] = ""
 
+    # ── 1. Restore persisted auth once per session ──
     if not st.session_state.get("_auth_verified") and not st.session_state.get("user_email"):
         persisted_email = load_auth()
         if persisted_email and get_user(persisted_email):
             st.session_state["_auth_verified"] = True
             st.session_state.user_email = persisted_email
+            st.session_state["_otp_email"] = persisted_email
 
     st.markdown('<div class="sidebar-section-title">Access</div>', unsafe_allow_html=True)
 
+    # ── 2. Already verified → nothing else to do here ──
     verified_email = _clean_email(st.session_state.user_email)
     if is_authenticated() and verified_email:
         st.success(f"Verified as {verified_email}")
         return verified_email
 
+    # ── 3. Offline / dev-mode bypass ──
+    if _supabase_offline():
+        email = st.text_input(
+            "Email",
+            value=st.session_state.get("_otp_email", ""),
+            placeholder="you@company.com",
+            key="_email_input",
+            help="Used to verify access, check your plan, and track report usage.",
+        )
+        clean_email = _clean_email(email)
+        st.session_state["_otp_email"] = clean_email
+        st.session_state.user_email = clean_email
+        st.session_state["_auth_verified"] = bool(clean_email)
+        if clean_email:
+            save_auth(clean_email)
+            st.success(f"Verified as {clean_email}")
+        st.caption("Dev mode: Supabase Auth is not configured, using session-only access.")
+        return st.session_state.user_email
+
+    # ── 4. Email input (sync widget state carefully) ──
     email = st.text_input(
         "Email",
         value=st.session_state.get("_otp_email", ""),
@@ -2971,22 +3001,16 @@ def render_sidebar_access() -> str:
     )
     clean_email = _clean_email(email)
 
-    if clean_email != st.session_state.get("_otp_email", ""):
+    # Only reset OTP flow when the user *intentionally* changes the email address.
+    # If the input is momentarily empty during a fast rerun, do not wipe verified state.
+    if clean_email and clean_email != st.session_state.get("_otp_email", ""):
         st.session_state["_otp_email"] = clean_email
         st.session_state["_otp_sent"] = False
         st.session_state["_auth_verified"] = False
         st.session_state.user_email = ""
         clear_auth()
 
-    if _supabase_offline():
-        st.session_state.user_email = clean_email
-        st.session_state["_auth_verified"] = bool(clean_email)
-        if clean_email:
-            save_auth(clean_email)
-            st.success(f"Verified as {clean_email}")
-        st.caption("Dev mode: Supabase Auth is not configured, using session-only access.")
-        return st.session_state.user_email
-
+    # ── 5. Send OTP ──
     if st.button(
         "Send OTP",
         key="send_otp_button",
@@ -3004,6 +3028,7 @@ def render_sidebar_access() -> str:
         else:
             st.error("Could not send OTP. Check Supabase Auth settings and secrets.")
 
+    # ── 6. Verify OTP ──
     if st.session_state.get("_otp_sent") and st.session_state.get("_otp_email") == clean_email:
         token = st.text_input(
             "OTP",
@@ -3043,7 +3068,7 @@ def render_sidebar_sign_out() -> None:
     st.divider()
     if st.button("Sign out", key="supabase_sign_out", use_container_width=True):
         st.session_state.user_email = ""
-        st.session_state.email_confirmed = False
+        st.session_state["_auth_verified"] = False
         for key in ("_auth_verified", "_supabase_session", "_otp_sent", "_otp_email", "_email_input", "_otp_input"):
             st.session_state.pop(key, None)
         clear_auth()
