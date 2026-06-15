@@ -1,3 +1,14 @@
+---
+title: Stock Research Assistant
+emoji: 📊
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Stock Research Assistant
 
 AI-assisted NSE stock research with fundamentals, technicals, sentiment, risk, and a coordinated verdict.
