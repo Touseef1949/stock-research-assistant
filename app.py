@@ -12,6 +12,7 @@ from typing import Any, Callable
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 import streamlit_shadcn_ui as ui
 
 from logic import resolve_ticker
@@ -2028,9 +2029,53 @@ def _inject_mobile_styles() -> None:
             width: 1.25rem;
         }
         </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    components.html(
+        """
+        <style>
+        .sra-mobile-toggle-wrapper {
+            align-items: center;
+            background: #fff;
+            border: 1px solid #E8E8E8;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            display: none;
+            height: 2.75rem;
+            justify-content: center;
+            left: 0.6rem;
+            pointer-events: auto;
+            position: fixed;
+            top: 0.6rem;
+            width: 2.75rem;
+            z-index: 999999;
+        }
+        .sra-mobile-toggle-wrapper button {
+            align-items: center !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            color: #1A1A1A !important;
+            display: flex !important;
+            height: 100% !important;
+            justify-content: center !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: static !important;
+            width: 100% !important;
+        }
+        @media (max-width: 768px) {
+            .sra-mobile-toggle-wrapper { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+            .sra-mobile-toggle-wrapper { display: none !important; }
+        }
+        </style>
         <script>
         (function() {
-            function createMobileToggle() {
+            function ensureMobileToggle() {
                 if (window.innerWidth > 768) {
                     var old = document.getElementById('sra-mobile-toggle-wrapper');
                     if (old) old.remove();
@@ -2040,52 +2085,40 @@ def _inject_mobile_styles() -> None:
                 if (!wrapper) {
                     wrapper = document.createElement('div');
                     wrapper.id = 'sra-mobile-toggle-wrapper';
+                    wrapper.className = 'sra-mobile-toggle-wrapper';
                     wrapper.setAttribute('aria-label', 'Open menu');
-                    wrapper.style.cssText = 'position:fixed;top:0.6rem;left:0.6rem;width:2.75rem;height:2.75rem;z-index:999999;background:#fff;border:1px solid #E8E8E8;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.08);cursor:pointer;pointer-events:auto;';
-                    if (document.body) document.body.appendChild(wrapper);
-                    else window.addEventListener('DOMContentLoaded', function() { document.body.appendChild(wrapper); });
+                    document.body.appendChild(wrapper);
                 }
-                // Find the native sidebar toggle and move it into the wrapper
-                var native = document.querySelector('button[data-testid="stBaseButton-headerNoPadding"], button[data-testid="stExpandSidebarButton"]');
+                var native = document.querySelector('button[data-testid=\"stBaseButton-headerNoPadding\"], button[data-testid=\"stExpandSidebarButton\"]');
                 if (native && native.parentElement !== wrapper) {
-                    native.style.cssText = 'width:100%!important;height:100%!important;position:static!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;box-shadow:none!important;color:#1A1A1A!important;display:flex!important;align-items:center!important;justify-content:center!important;';
                     wrapper.innerHTML = '';
                     wrapper.appendChild(native);
                 }
             }
-            function ensureMobileToggle() {
+            function init() {
                 if (window.innerWidth > 768) {
                     var old = document.getElementById('sra-mobile-toggle-wrapper');
                     if (old) old.remove();
                     return;
                 }
-                createMobileToggle();
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', ensureMobileToggle);
-            } else {
                 ensureMobileToggle();
             }
-            // Re-attach after Streamlit re-renders
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
             var observer = new MutationObserver(function() {
                 if (window.innerWidth <= 768) ensureMobileToggle();
             });
             if (document.body) observer.observe(document.body, {childList: true, subtree: true});
             else window.addEventListener('DOMContentLoaded', function() { observer.observe(document.body, {childList: true, subtree: true}); });
-            window.addEventListener('resize', function() {
-                if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-toggle-wrapper');
-                    if (old) old.remove();
-                } else {
-                    ensureMobileToggle();
-                }
-            });
+            window.addEventListener('resize', init);
         })();
         </script>
         """,
-        unsafe_allow_html=True,
+        height=0,
     )
-
 
 def init_state() -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
