@@ -885,15 +885,10 @@ def _inject_component_styles(theme: str) -> None:
 
         /* Keep sidebar toggle reachable on mobile after hiding chrome */
         button[data-testid="stBaseButton-headerNoPadding"],
-        button[data-testid="stExpandSidebarButton"],
-        [data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"],
-        [data-testid="stSidebar"] button[data-testid="stExpandSidebarButton"] {
+        button[data-testid="stExpandSidebarButton"] {
             display: flex !important;
             visibility: visible !important;
             opacity: 1 !important;
-        }
-        button[data-testid="stBaseButton-headerNoPadding"],
-        button[data-testid="stExpandSidebarButton"] {
             position: fixed !important;
             top: 0.6rem !important;
             left: 0.6rem !important;
@@ -905,15 +900,8 @@ def _inject_component_styles(theme: str) -> None:
             color: var(--text) !important;
             width: 2.75rem !important;
             height: 2.75rem !important;
-        }
-
-        /* When sidebar is open, move the collapse button to inside sidebar */
-        [data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"],
-        [data-testid="stSidebar"] button[data-testid="stExpandSidebarButton"] {
-            position: absolute !important;
-            top: 0.6rem !important;
-            right: 0.6rem !important;
-            left: auto !important;
+            transform: none !important;
+            margin: 0 !important;
         }
 
         [data-testid="stAppViewContainer"] {
@@ -2060,7 +2048,7 @@ def _inject_mobile_styles() -> None:
                 btn.setAttribute('aria-label', 'Open menu');
                 btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
                 btn.addEventListener('click', function() {
-                    var nativeToggle = document.querySelector('[data-testid="stBaseButton-headerNoPadding"], [data-testid="stExpandSidebarButton"]');
+                    var nativeToggle = document.querySelector('button[data-testid="stBaseButton-headerNoPadding"], button[data-testid="stExpandSidebarButton"]');
                     if (nativeToggle) { nativeToggle.click(); }
                 });
                 document.body.appendChild(btn);
