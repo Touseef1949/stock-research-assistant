@@ -1811,6 +1811,184 @@ def _inject_component_styles(theme: str) -> None:
             """,
             unsafe_allow_html=True,
         )
+    _inject_mobile_styles()
+
+
+def _inject_mobile_styles() -> None:
+    """Responsive overrides so the app is usable on phones and small tablets."""
+    st.markdown(
+        """
+        <style>
+        /* ---------- Mobile-first responsive stack ---------- */
+        @media (max-width: 768px) {
+            .block-container {
+                max-width: 100% !important;
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+
+            [data-testid="stAppViewContainer"] > .main {
+                padding-top: 1.25rem !important;
+            }
+
+            /* Streamlit horizontal blocks → single column */
+            [data-testid="stHorizontalBlock"] {
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+            }
+            [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+                flex: 0 0 100% !important;
+                min-width: 100% !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            /* Hero / page header */
+            .page-header {
+                flex-direction: column !important;
+                padding: 1rem !important;
+                margin-bottom: 0.75rem !important;
+            }
+            .page-header h1 {
+                font-size: 1.7rem !important;
+                line-height: 1.15 !important;
+                hyphens: none !important;
+                word-break: normal !important;
+            }
+            .page-header p {
+                font-size: 0.92rem !important;
+            }
+            .hero-chip-row {
+                gap: 0.4rem !important;
+            }
+            .hero-chip-row span {
+                font-size: 0.68rem !important;
+                padding: 0.25rem 0.5rem !important;
+            }
+            .hero-aside {
+                min-width: auto !important;
+                width: 100% !important;
+                margin-top: 0.75rem !important;
+            }
+
+            /* Stock header */
+            .stock-title-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 0.75rem !important;
+            }
+            .stock-price-block {
+                min-width: auto !important;
+                text-align: left !important;
+                width: 100% !important;
+            }
+            .stock-price {
+                font-size: 1.65rem !important;
+            }
+
+            /* Sample report preview */
+            .sample-report-preview {
+                padding: 1rem !important;
+            }
+            .sample-report-head {
+                flex-direction: column !important;
+                gap: 1rem !important;
+            }
+            .sample-report-head h3 {
+                font-size: 1.1rem !important;
+            }
+            .sample-verdict-card {
+                width: 100% !important;
+                min-width: auto !important;
+                text-align: center !important;
+                padding: 0.75rem !important;
+            }
+            .sample-report-grid {
+                grid-template-columns: 1fr !important;
+                gap: 0.6rem !important;
+            }
+
+            /* Executive verdict strip */
+            .executive-verdict-strip {
+                flex-direction: column !important;
+                padding: 1rem !important;
+            }
+            .executive-verdict-copy h3 {
+                font-size: 1.1rem !important;
+            }
+            .executive-verdict-metrics {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.5rem !important;
+                margin-top: 1rem !important;
+            }
+            .executive-verdict-metric {
+                padding: 0.55rem !important;
+            }
+
+            /* KPI / score cards */
+            .score-card, [data-testid="stMetric"] {
+                min-height: auto !important;
+            }
+
+            /* Section titles */
+            .section-title {
+                font-size: 0.95rem !important;
+            }
+            .section-title-wrap {
+                margin: 1rem 0 0.5rem !important;
+            }
+
+            /* Tabs */
+            [data-testid="stTabs"] [role="tablist"] {
+                flex-wrap: wrap !important;
+            }
+            [data-testid="stTabs"] [role="tab"] {
+                flex: 1 1 auto !important;
+                font-size: 0.78rem !important;
+                min-height: 44px !important;
+                padding: 0.5rem 0.6rem !important;
+            }
+
+            /* Buttons / tap targets */
+            button, [role="button"], .stButton button, .stDownloadButton button, .stTextInput input {
+                min-height: 44px !important;
+            }
+
+            /* Sidebar on mobile */
+            [data-testid="stSidebar"] {
+                width: 85vw !important;
+                max-width: 320px !important;
+            }
+            [data-testid="stSidebar"] .block-container {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+
+            /* Dataframes / tables */
+            [data-testid="stDataFrame"] {
+                overflow-x: auto !important;
+            }
+
+            /* Footer */
+            .footer {
+                font-size: 0.72rem !important;
+                padding: 0.75rem 1rem !important;
+            }
+        }
+
+        /* Extra-tight screens */
+        @media (max-width: 380px) {
+            .page-header h1 {
+                font-size: 1.5rem !important;
+            }
+            .executive-verdict-metrics {
+                grid-template-columns: 1fr !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def init_state() -> None:
