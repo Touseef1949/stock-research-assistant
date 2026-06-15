@@ -1969,6 +1969,25 @@ def _inject_mobile_styles() -> None:
                 overflow-x: auto !important;
             }
 
+            /* Hero pricing caption */
+            .hero-pricing-caption {
+                color: var(--muted);
+                font-size: 0.78rem;
+                line-height: 1.35;
+                margin-top: 0.6rem;
+                overflow-wrap: anywhere;
+                text-align: center;
+                word-break: normal;
+            }
+            @media (max-width: 768px) {
+                .hero-pricing-caption {
+                    font-size: 0.82rem;
+                    margin-top: 0.75rem;
+                    padding: 0 0.25rem;
+                    text-align: left;
+                }
+            }
+
             /* Footer */
             .footer {
                 font-size: 0.72rem !important;
@@ -3855,7 +3874,10 @@ def render_hero_action(symbol: str) -> bool:
         use_container_width=True,
         disabled=(not symbol.strip()),
     )
-    st.caption("Free: 5 reports · Pro: 100 reports · ₹199/mo")
+    st.markdown(
+        '<div class="hero-pricing-caption">Free: 5 reports · Pro: 100 reports · ₹199/mo</div>',
+        unsafe_allow_html=True,
+    )
     return clicked
 
 
