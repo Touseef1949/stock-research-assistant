@@ -872,90 +872,22 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* ── Production polish pass: chrome, sidebar reachability, and dashboard depth ── */
-        /* On desktop, hide Streamlit chrome. On mobile, keep the header visible as a thin bar
-           so the native sidebar toggle is reachable; hide everything else in the header. */
+        /* On desktop, hide Streamlit chrome. On mobile, keep the header visible
+           so the native sidebar hamburger toggle is reachable. */
         @media (min-width: 769px) {
             header[data-testid="stHeader"],
             [data-testid="stToolbar"],
-            [data-testid="stDecoration"] {
+            [data-testid="stDeployButton"],
+            [data-testid="stDecoration"],
+            header[data-testid="stHeader"] [title="View fullscreen"],
+            .stDeployButton,
+            [data-testid="stStatusWidget"],
+            #MainMenu,
+            footer {
                 display: none !important;
             }
         }
 
-        @media (max-width: 768px) {
-            header[data-testid="stHeader"] {
-                display: flex !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-                height: 3.25rem !important;
-                min-height: 3.25rem !important;
-                background: transparent !important;
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                z-index: 999990 !important;
-                pointer-events: none !important;
-            }
-            header[data-testid="stHeader"] > *:not(button):not([data-testid="stBaseButton-headerNoPadding"]):not([data-testid="stExpandSidebarButton"]):not([data-testid="stSidebarCollapseButton"]) {
-                display: none !important;
-            }
-            header[data-testid="stHeader"] button[data-testid="stBaseButton-headerNoPadding"],
-            header[data-testid="stHeader"] button[data-testid="stExpandSidebarButton"] {
-                pointer-events: auto !important;
-                position: fixed !important;
-                top: 0.6rem !important;
-                left: 0.6rem !important;
-                width: 2.75rem !important;
-                height: 2.75rem !important;
-                z-index: 999999 !important;
-                background: var(--panel) !important;
-                border: 1px solid var(--border) !important;
-                border-radius: 10px !important;
-                box-shadow: var(--shadow) !important;
-                color: var(--text) !important;
-            }
-            [data-testid="stAppViewContainer"] > .main {
-                padding-top: 3.25rem !important;
-            }
-        }
-
-        [data-testid="stToolbar"],
-        [data-testid="stDeployButton"],
-        [data-testid="stDecoration"],
-        header[data-testid="stHeader"] [title="View fullscreen"],
-        .stDeployButton {
-            display: none !important;
-        }
-        [data-testid="stStatusWidget"],
-        #MainMenu,
-        footer {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-        }
-
-        /* Keep sidebar toggle reachable on mobile after hiding chrome */
-        button[data-testid="stBaseButton-headerNoPadding"],
-        button[data-testid="stExpandSidebarButton"] {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        /* Sidebar is collapsed by default on mobile; a custom hamburger triggers it */
-        [data-testid="stSidebar"] {
-            transform: translateX(-100%) !important;
-        }
-        [data-testid="stSidebar"][aria-expanded="true"] {
-            transform: translateX(0) !important;
-        }
-        [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
-            position: absolute !important;
-            top: 0.6rem !important;
-            right: 0.6rem !important;
-            left: auto !important;
-        }
         [data-testid="stAppViewContainer"] {
             background: var(--bg-2) !important;
         }
