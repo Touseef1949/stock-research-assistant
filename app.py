@@ -872,7 +872,8 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* ── Production polish pass: chrome, sidebar reachability, and dashboard depth ── */
-        /* Make native Streamlit sidebar toggle visible on mobile */
+        /* Keep the header thin on mobile and rely on JS to move the native
+           sidebar toggle into a fixed, visible hamburger button. */
         @media (max-width: 768px) {
             header[data-testid="stHeader"] {
                 position: fixed !important;
@@ -885,23 +886,9 @@ def _inject_component_styles(theme: str) -> None:
                 background: transparent !important;
                 pointer-events: none !important;
             }
-            header[data-testid="stHeader"] > *:not([data-testid="stBaseButton-headerNoPadding"]):not([data-testid="stExpandSidebarButton"]) {
+            /* Let JS move the toggle out; hide whatever native chrome remains */
+            header[data-testid="stHeader"] > * {
                 display: none !important;
-            }
-            header[data-testid="stHeader"] button[data-testid="stBaseButton-headerNoPadding"],
-            header[data-testid="stHeader"] button[data-testid="stExpandSidebarButton"] {
-                position: absolute !important;
-                top: 0.6rem !important;
-                left: 0.6rem !important;
-                width: 2.75rem !important;
-                height: 2.75rem !important;
-                z-index: 999999 !important;
-                pointer-events: auto !important;
-                background: var(--panel) !important;
-                border: 1px solid var(--border) !important;
-                border-radius: 10px !important;
-                box-shadow: var(--shadow) !important;
-                color: var(--text) !important;
             }
             [data-testid="stAppViewContainer"] > .main {
                 padding-top: 3.25rem !important;
@@ -2043,56 +2030,54 @@ def _inject_mobile_styles() -> None:
         </style>
         <script>
         (function() {
-            function createMobileMenu() {
+            function createMobileToggle() {
                 if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-menu-btn');
+                    var old = document.getElementById('sra-mobile-toggle-wrapper');
                     if (old) old.remove();
                     return;
                 }
-                if (document.getElementById('sra-mobile-menu-btn')) return;
-                var btn = document.createElement('button');
-                btn.id = 'sra-mobile-menu-btn';
-                btn.className = 'mobile-menu-btn';
-                btn.setAttribute('aria-label', 'Open menu');
-                btn.innerHTML = '<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"3\" y1=\"6\" x2=\"21\" y2=\"6\"></line><line x1=\"3\" y1=\"12\" x2=\"21\" y2=\"12\"></line><line x1=\"3\" y1=\"18\" x2=\"21\" y2=\"18\"></line></svg>';
-                btn.addEventListener('click', function() {
-                    var nativeToggle = document.querySelector('button[data-testid=\"stBaseButton-headerNoPadding\"], button[data-testid=\"stExpandSidebarButton\"]');
-                    if (nativeToggle) { nativeToggle.click(); }
-                });
-                if (document.body) {
-                    document.body.appendChild(btn);
-                } else {
-                    window.addEventListener('DOMContentLoaded', function() { document.body.appendChild(btn); });
+                var wrapper = document.getElementById('sra-mobile-toggle-wrapper');
+                if (!wrapper) {
+                    wrapper = document.createElement('div');
+                    wrapper.id = 'sra-mobile-toggle-wrapper';
+                    wrapper.setAttribute('aria-label', 'Open menu');
+                    wrapper.style.cssText = 'position:fixed;top:0.6rem;left:0.6rem;width:2.75rem;height:2.75rem;z-index:999999;background:#fff;border:1px solid #E8E8E8;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.08);cursor:pointer;pointer-events:auto;';
+                    if (document.body) document.body.appendChild(wrapper);
+                    else window.addEventListener('DOMContentLoaded', function() { document.body.appendChild(wrapper); });
+                }
+                // Find the native sidebar toggle and move it into the wrapper
+                var native = document.querySelector('button[data-testid="stBaseButton-headerNoPadding"], button[data-testid="stExpandSidebarButton"]');
+                if (native && native.parentElement !== wrapper) {
+                    native.style.cssText = 'width:100%!important;height:100%!important;position:static!important;margin:0!important;padding:0!important;background:transparent!important;border:none!important;box-shadow:none!important;color:#1A1A1A!important;display:flex!important;align-items:center!important;justify-content:center!important;';
+                    wrapper.innerHTML = '';
+                    wrapper.appendChild(native);
                 }
             }
-            function ensureMobileMenu() {
+            function ensureMobileToggle() {
                 if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-menu-btn');
+                    var old = document.getElementById('sra-mobile-toggle-wrapper');
                     if (old) old.remove();
                     return;
                 }
-                if (!document.getElementById('sra-mobile-menu-btn')) createMobileMenu();
+                createMobileToggle();
             }
-            // Initial creation
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', ensureMobileMenu);
+                document.addEventListener('DOMContentLoaded', ensureMobileToggle);
             } else {
-                ensureMobileMenu();
+                ensureMobileToggle();
             }
-            // Re-create if Streamlit's frontend removes it during re-render
-            var observer = new MutationObserver(function(mutations) {
-                if (window.innerWidth <= 768 && !document.getElementById('sra-mobile-menu-btn')) {
-                    createMobileMenu();
-                }
+            // Re-attach after Streamlit re-renders
+            var observer = new MutationObserver(function() {
+                if (window.innerWidth <= 768) ensureMobileToggle();
             });
             if (document.body) observer.observe(document.body, {childList: true, subtree: true});
             else window.addEventListener('DOMContentLoaded', function() { observer.observe(document.body, {childList: true, subtree: true}); });
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 768) {
-                    var old = document.getElementById('sra-mobile-menu-btn');
+                    var old = document.getElementById('sra-mobile-toggle-wrapper');
                     if (old) old.remove();
                 } else {
-                    ensureMobileMenu();
+                    ensureMobileToggle();
                 }
             });
         })();
