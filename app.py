@@ -873,26 +873,21 @@ def _inject_component_styles(theme: str) -> None:
         }
 
         /* ── Production polish pass: chrome, sidebar reachability, and dashboard depth ── */
-        /* Keep the header thin on mobile and rely on JS to move the native
-           sidebar toggle into a fixed, visible hamburger button. */
+        /* Make the sidebar reachable on mobile by exposing its native toggle */
         @media (max-width: 768px) {
-            header[data-testid="stHeader"] {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100% !important;
-                height: 3.25rem !important;
-                min-height: 3.25rem !important;
-                z-index: 999990 !important;
-                background: transparent !important;
-                pointer-events: none !important;
+            [data-testid="stSidebar"] {
+                width: 320px !important;
+                transform: translateX(-260px) !important;
+                transition: transform 0.25s ease !important;
             }
-            /* Let JS move the toggle out; hide whatever native chrome remains */
-            header[data-testid="stHeader"] > * {
-                display: none !important;
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                transform: translateX(0) !important;
             }
-            [data-testid="stAppViewContainer"] > .main {
-                padding-top: 3.25rem !important;
+            [data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"] {
+                position: absolute !important;
+                top: 0.6rem !important;
+                right: 0.6rem !important;
+                left: auto !important;
             }
         }
 
