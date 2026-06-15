@@ -2003,29 +2003,15 @@ def _inject_mobile_styles() -> None:
                 overflow-x: auto !important;
             }
 
-            /* Hero pricing caption */
-            .hero-pricing-caption {
-                color: var(--muted);
-                font-size: 0.78rem;
-                line-height: 1.35;
-                margin: 0.6rem 0 0 0 !important;
-                overflow-wrap: anywhere;
-                text-align: center;
-                word-break: normal;
-            }
-            @media (max-width: 768px) {
-                .hero-pricing-caption {
-                    font-size: 0.82rem;
-                    margin: 0.75rem 0 0 0 !important;
-                    padding-left: 0.25rem;
-                    text-align: left;
-                }
-            }
-
             /* Footer */
             .footer {
                 font-size: 0.72rem !important;
                 padding: 0.75rem 1rem !important;
+            }
+
+            /* Mobile-only menu button */
+            .mobile-menu-btn {
+                display: flex !important;
             }
         }
 
@@ -2038,7 +2024,51 @@ def _inject_mobile_styles() -> None:
                 grid-template-columns: 1fr !important;
             }
         }
+
+        /* Mobile menu button (hidden on desktop) */
+        .mobile-menu-btn {
+            align-items: center;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            color: var(--text);
+            cursor: pointer;
+            display: none;
+            height: 2.75rem;
+            justify-content: center;
+            left: 0.6rem;
+            position: fixed;
+            top: 0.6rem;
+            width: 2.75rem;
+            z-index: 999999;
+        }
+        .mobile-menu-btn svg {
+            fill: currentColor;
+            height: 1.25rem;
+            width: 1.25rem;
+        }
         </style>
+        <script>
+        (function() {
+            function ensureMobileMenu() {
+                if (window.innerWidth > 768) return;
+                if (document.getElementById('sra-mobile-menu-btn')) return;
+                var btn = document.createElement('button');
+                btn.id = 'sra-mobile-menu-btn';
+                btn.className = 'mobile-menu-btn';
+                btn.setAttribute('aria-label', 'Open menu');
+                btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+                btn.addEventListener('click', function() {
+                    var nativeToggle = document.querySelector('[data-testid="stBaseButton-headerNoPadding"], [data-testid="stExpandSidebarButton"]');
+                    if (nativeToggle) { nativeToggle.click(); }
+                });
+                document.body.appendChild(btn);
+            }
+            ensureMobileMenu();
+            window.addEventListener('resize', ensureMobileMenu);
+        })();
+        </script>
         """,
         unsafe_allow_html=True,
     )
