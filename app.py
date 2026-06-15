@@ -952,7 +952,7 @@ def _inject_component_styles(theme: str) -> None:
             color: var(--text) !important;
             width: 2.75rem !important;
             height: 2.75rem !important;
-            transform: none !important;
+            transform: translateX(300px) !important;
             margin: 0 !important;
         }
 
