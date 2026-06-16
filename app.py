@@ -3,6 +3,9 @@ from __future__ import annotations
 import os
 import json
 import re
+import http.cookiejar
+import urllib.parse
+import urllib.request
 from html import escape
 from dataclasses import dataclass
 from datetime import datetime
@@ -2120,9 +2123,9 @@ def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
     base = display_symbol(nse_symbol)
     screener = fetch_screener_financials(nse_symbol)
     if not screener.get("success"):
-        raise RuntimeError(
-            "Yahoo Finance is rate-limiting and Screener.in fallback also failed: "
-            + "; ".join(screener.get("warnings", []))
+        return _market_data_from_web_search(
+            nse_symbol,
+            reason="; ".join(screener.get("warnings", [])),
         )
 
     d = screener.get("data", {})
@@ -2130,7 +2133,7 @@ def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
     price = safe_float(ratios.get("current_price")) or 0.0
     if not price:
         # Last resort: try a simple web search extraction for current price
-        price = _current_price_from_web_search(base)
+        price = _current_price_from_web_sources(base)
 
     name = base
     if not price:
@@ -2155,9 +2158,6 @@ def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
     if revenue_growth is not None:
         revenue_growth = revenue_growth / 100
 
-    # Build a minimal synthetic history DataFrame so technical indicator code doesn't crash.
-    hist = _synthetic_history(price)
-
     fundamentals = {
         "market_cap": market_cap,
         "trailing_pe": stock_pe,
@@ -2170,39 +2170,14 @@ def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
         "profit_margins": None,
         "beta": None,
     }
-    technicals = {
-        "trend": "Neutral",
-        "rsi": 50.0,
-        "macd": 0.0,
-        "macd_signal": 0.0,
-        "ema20": price,
-        "ema50": price,
-        "support": price * 0.95,
-        "resistance": price * 1.05,
-        "avg_volume_20d": 0.0,
-        "latest_volume": 0.0,
-        "max_drawdown_pct": -5.0,
-        "return_1y_pct": 0.0,
-        "volatility_60d_pct": 15.0,
-    }
-
-    return {
-        "symbol": nse_symbol,
-        "base_symbol": base,
-        "name": name,
-        "exchange": "NSE",
-        "currency": "INR",
-        "price": price,
-        "change": 0.0,
-        "change_pct": 0.0,
-        "history": hist,
-        "info": {},
-        "fundamentals": fundamentals,
-        "technicals": technicals,
-        "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
-        "source": "screener_fallback",
-        "screener_data": screener,
-    }
+    return _build_minimal_market_data(
+        nse_symbol=nse_symbol,
+        price=price,
+        source="screener_fallback",
+        name=name,
+        fundamentals=fundamentals,
+        screener_data=screener,
+    )
 
 
 def _safe_ratio_name(name: str) -> str:
@@ -2213,6 +2188,8 @@ def _safe_ratio_name(name: str) -> str:
 def _market_data_source_badge(data: dict[str, Any]) -> str:
     if data.get("source") == "screener_fallback":
         return "📡 Live market data from Screener.in (Yahoo Finance was temporarily unavailable)"
+    if data.get("source") == "web_search_fallback":
+        return "🌐 Price from public web fallback (Yahoo Finance and Screener.in were unavailable)"
     return "📈 Market data from Yahoo Finance"
 
 
@@ -2242,7 +2219,150 @@ def _synthetic_history(price: float) -> Any:
     return df
 
 
-def _current_price_from_web_search(symbol: str) -> float | None:
+def _build_minimal_market_data(
+    nse_symbol: str,
+    price: float,
+    source: str,
+    name: str | None = None,
+    fundamentals: dict[str, Any] | None = None,
+    screener_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build safe market_data when only a current price is available."""
+    base = display_symbol(nse_symbol)
+    hist = _synthetic_history(price)
+    fundamentals = fundamentals or {
+        "market_cap": None,
+        "trailing_pe": None,
+        "forward_pe": None,
+        "price_to_book": None,
+        "roe": None,
+        "debt_to_equity": None,
+        "revenue_growth": None,
+        "dividend_yield": None,
+        "profit_margins": None,
+        "beta": None,
+    }
+    technicals = {
+        "trend": "Neutral",
+        "rsi": 50.0,
+        "macd": 0.0,
+        "macd_signal": 0.0,
+        "ema20": price,
+        "ema50": price,
+        "support": price * 0.95,
+        "resistance": price * 1.05,
+        "avg_volume_20d": 0.0,
+        "latest_volume": 0.0,
+        "max_drawdown_pct": -5.0,
+        "return_1y_pct": 0.0,
+        "volatility_60d_pct": 15.0,
+    }
+    data = {
+        "symbol": nse_symbol,
+        "base_symbol": base,
+        "name": name or base,
+        "exchange": "NSE",
+        "currency": "INR",
+        "price": price,
+        "change": 0.0,
+        "change_pct": 0.0,
+        "history": hist,
+        "info": {},
+        "fundamentals": fundamentals,
+        "technicals": technicals,
+        "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
+        "source": source,
+    }
+    if screener_data is not None:
+        data["screener_data"] = screener_data
+    return data
+
+
+def _market_data_from_web_search(nse_symbol: str, reason: str = "") -> dict[str, Any]:
+    """Build minimal market data from public web-derived current price sources."""
+    price = _current_price_from_web_sources(display_symbol(nse_symbol))
+    if price:
+        return _build_minimal_market_data(
+            nse_symbol=nse_symbol,
+            price=price,
+            source="web_search_fallback",
+            name=display_symbol(nse_symbol),
+        )
+
+    details = f" Details: {reason}" if reason else ""
+    raise RuntimeError(
+        "Yahoo Finance, Screener.in, and web fallback are unreachable for "
+        f"{nse_symbol}.{details}"
+    )
+
+
+def _web_get_text(url: str, headers: dict[str, str] | None = None, opener: Any = None) -> str:
+    request = urllib.request.Request(
+        url,
+        headers=headers
+        or {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+    )
+    open_fn = opener.open if opener is not None else urllib.request.urlopen
+    with open_fn(request, timeout=8) as response:
+        return response.read().decode("utf-8", errors="ignore")
+
+
+def _price_from_google_finance(symbol: str) -> float | None:
+    url = f"https://www.google.com/finance/quote/{urllib.parse.quote(symbol)}:NSE"
+    try:
+        html = _web_get_text(url)
+    except Exception:
+        return None
+
+    # Scope extraction to Google Finance's main quote header. Avoid generic
+    # rupee/number matches because related-stock cards and index widgets on the
+    # same page can contain unrelated prices.
+    main_quote_pattern = (
+        r'<div class="gO24Ff">[^<]+</div>\s*</div>\s*'
+        r'<div class="LhDNu">.*?jsname="Pdsbrc"[^>]*>\s*'
+        r'<span>\s*(?:₹|Rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)\s*</span>'
+    )
+    match = re.search(main_quote_pattern, html, flags=re.S)
+    if not match:
+        return None
+
+    price = safe_float(match.group(1).replace(",", ""))
+    if price and 10 < price < 50000:
+        return price
+    return None
+
+
+def _price_from_nse_quote_api(symbol: str) -> float | None:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.nseindia.com/get-quotes/equity",
+    }
+    cookie_jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+    try:
+        _web_get_text("https://www.nseindia.com", headers=headers, opener=opener)
+        url = "https://www.nseindia.com/api/quote-equity?symbol=" + urllib.parse.quote(symbol)
+        payload = json.loads(_web_get_text(url, headers=headers, opener=opener))
+    except Exception:
+        return None
+
+    price_info = payload.get("priceInfo", {}) if isinstance(payload, dict) else {}
+    for key in ("lastPrice", "close", "previousClose"):
+        price = safe_float(price_info.get(key))
+        if price and 10 < price < 50000:
+            return price
+    return None
+
+
+def _price_from_ddgs_snippets(symbol: str) -> float | None:
     """Try to extract a current price from web search snippets."""
     try:
         from ddgs import DDGS
@@ -2262,6 +2382,29 @@ def _current_price_from_web_search(symbol: str) -> float | None:
     except Exception:
         pass
     return None
+
+
+def _current_price_from_web_sources(symbol: str) -> float | None:
+    """Try structured public web sources for a current price.
+
+    We intentionally do NOT parse generic search snippets for price because
+    snippets frequently contain unrelated values (percent changes, rankings,
+    target prices) that look like valid prices.
+    """
+    base = display_symbol(symbol)
+    for source in (
+        _price_from_google_finance,
+        _price_from_nse_quote_api,
+    ):
+        price = source(base)
+        if price:
+            return price
+    return None
+
+
+def _current_price_from_web_search(symbol: str) -> float | None:
+    """Backward-compatible wrapper for the older helper name."""
+    return _current_price_from_web_sources(symbol)
 
 
 @st.cache_data(ttl=300, show_spinner=False)

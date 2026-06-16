@@ -145,8 +145,6 @@ def _internal_pro_payload(email: str, analyses_used: int = 0) -> dict[str, Any]:
         "analyses_used": analyses_used,
         "analyses_limit": TIER_LIMITS["pro"],
         "created_at": None,
-        "confirmed_at": None,
-        "last_login_at": None,
         "authenticated": True,
         "internal_pro": True,
     }
@@ -163,8 +161,6 @@ def _user_payload(row: dict[str, Any]) -> dict[str, Any]:
         "analyses_used": row.get("analyses_used", 0),
         "analyses_limit": TIER_LIMITS.get(str(plan), TIER_LIMITS["free"]),
         "created_at": row.get("created_at"),
-        "confirmed_at": row.get("confirmed_at"),
-        "last_login_at": row.get("last_login_at"),
         "authenticated": True,
         "internal_pro": is_internal_pro,
     }
@@ -210,7 +206,6 @@ class _MockUser:
     analyses_limit = TIER_LIMITS["free"]
     email = "mock@local"
     created_at = None
-    last_login_at = None
     authenticated = False
 
 
@@ -284,17 +279,18 @@ def _ensure_user_row(email: str, auth_user_id: Optional[str] = None) -> Optional
     now = _now_iso()
     existing = get_user(clean_email)
     if isinstance(existing, dict):
-        updates: dict[str, Any] = {"last_login_at": now}
-        if not existing.get("confirmed_at") and "confirmed_at" in existing:
-            updates["confirmed_at"] = now
+        # Only update columns that exist in the users table.
+        updates: dict[str, Any] = {}
         if _is_internal_pro_email(clean_email):
             updates["plan"] = "pro"
             updates["analyses_limit"] = TIER_LIMITS["pro"]
-        try:
-            sb.table("users").update(updates).eq("email", clean_email).execute()
-            return {**existing, **updates}
-        except Exception:
-            return existing
+        if updates:
+            try:
+                sb.table("users").update(updates).eq("email", clean_email).execute()
+                return {**existing, **updates}
+            except Exception:
+                return existing
+        return existing
     if existing is not None:
         return None
 
@@ -305,11 +301,11 @@ def _ensure_user_row(email: str, auth_user_id: Optional[str] = None) -> Optional
         "analyses_used": 0,
         "analyses_limit": TIER_LIMITS[row_plan],
         "created_at": now,
-        "confirmed_at": now,
-        "last_login_at": now,
     }
-    if auth_user_id:
-        row["id"] = auth_user_id
+    # NOTE: id is BIGSERIAL auto-increment — do NOT set it to the
+    # Supabase Auth UUID (which is a different type and will fail).
+    # Also: confirmed_at / last_login_at columns do NOT exist in the
+    # users table — keep inserts to the columns that actually exist.
     try:
         created = sb.table("users").insert(row).execute()
         if created.data:

@@ -191,6 +191,112 @@ def test_load_market_data_rate_limit_fallback(monkeypatch):
     assert data["price"] == 780.0
 
 
+def test_load_market_data_rate_limit_screener_fail_web_fallback(monkeypatch):
+    """When Yahoo rate-limits and Screener fails, web-search fallback should still return data."""
+    from app import load_market_data
+    from yf_client import YFinanceRateLimitError
+
+    # load_market_data is @st.cache_data; clear prior cached SBIN data from earlier tests.
+    load_market_data.clear()
+
+    def mock_rate_limit(symbol):
+        raise YFinanceRateLimitError("rate limited")
+
+    monkeypatch.setattr("yf_client.ticker_info", mock_rate_limit)
+    monkeypatch.setattr("app.ticker_info", mock_rate_limit)
+    monkeypatch.setattr(
+        "app.fetch_screener_financials",
+        lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
+    )
+    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: 812.35)
+
+    data = load_market_data("SBIN.NS")
+
+    assert data["source"] == "web_search_fallback"
+    assert data["price"] == 812.35
+    assert data["symbol"] == "SBIN.NS"
+    assert data["base_symbol"] == "SBIN"
+    assert data["technicals"]["trend"] == "Neutral"
+    assert data["fundamentals"]["trailing_pe"] is None
+
+
+def test_market_data_from_screener_falls_through_to_web(monkeypatch):
+    """Screener failure should try the web fallback before raising."""
+    from app import _market_data_from_screener
+
+    monkeypatch.setattr(
+        "app.fetch_screener_financials",
+        lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
+    )
+    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: 901.25)
+
+    data = _market_data_from_screener("RELIANCE.NS")
+
+    assert data["source"] == "web_search_fallback"
+    assert data["price"] == 901.25
+    assert data["base_symbol"] == "RELIANCE"
+
+
+def test_all_sources_failed_error_is_not_classified_as_yahoo_rate_limit(monkeypatch):
+    """All-source fallback failures should show honest error, not Yahoo-only rate-limit banner."""
+    from app import _market_data_from_screener
+    from yf_client import is_rate_limit_error
+
+    monkeypatch.setattr(
+        "app.fetch_screener_financials",
+        lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
+    )
+    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: None)
+
+    with pytest.raises(RuntimeError) as excinfo:
+        _market_data_from_screener("SBIN.NS")
+
+    message = str(excinfo.value)
+    assert "Yahoo Finance" in message
+    assert "Screener.in" in message
+    assert "web fallback" in message
+    assert is_rate_limit_error(excinfo.value) is False
+
+
+def test_google_finance_parser_handles_current_markup(monkeypatch):
+    """Google Finance current HTML exposes the live price in the main quote header."""
+    from app import _price_from_google_finance
+
+    html = (
+        '<div class="gO24Ff">Reliance Industries Ltd</div></div>'
+        '<div class="LhDNu"><div><span jsname="Pdsbrc" class="">'
+        '<span>₹1,328.60</span></span></div></div>'
+    )
+    monkeypatch.setattr("app._web_get_text", lambda url: html)
+
+    assert _price_from_google_finance("RELIANCE") == 1328.60
+
+
+def test_google_finance_parser_ignores_unscoped_rupee_values(monkeypatch):
+    """Do not grab random rupee values outside the main quote header."""
+    from app import _price_from_google_finance
+
+    html = '<div>Sensex ₹26,891.55</div><div>Target price ₹500</div>'
+    monkeypatch.setattr("app._web_get_text", lambda url: html)
+
+    assert _price_from_google_finance("TCS") is None
+
+
+def test_web_sources_do_not_use_ddgs_snippets(monkeypatch):
+    """DDGS snippets are too noisy for prices and must not be in the automatic chain."""
+    from app import _current_price_from_web_sources
+
+    monkeypatch.setattr("app._price_from_google_finance", lambda sym: None)
+    monkeypatch.setattr("app._price_from_nse_quote_api", lambda sym: None)
+
+    def bad_ddgs(sym):
+        raise AssertionError("DDGS snippet parser should not be used for automatic price fallback")
+
+    monkeypatch.setattr("app._price_from_ddgs_snippets", bad_ddgs)
+
+    assert _current_price_from_web_sources("SBIN") is None
+
+
 # ══════════════════════════════════════════════════════════
 # 2. fetch_screener_financials — mock HTML
 # ══════════════════════════════════════════════════════════
@@ -396,8 +502,6 @@ def test_get_user_with_supabase_row(monkeypatch):
             "analyses_used": 42,
             "analyses_limit": 100,
             "created_at": "2026-01-01",
-            "confirmed_at": "2026-01-01",
-            "last_login_at": "2026-06-01",
             "id": "user_123",
         }
     ]
