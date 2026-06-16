@@ -4170,77 +4170,9 @@ def render_analysis_progress_shell(active_label: str = "Resolving ticker") -> No
     )
 
 
-# ═══════════════════════════════════════════════════════════════
-# TEMPORARY — admin query helper (remove after use)
-# ═══════════════════════════════════════════════════════════════
-def _admin_dump_auth_users() -> None:
-    """Dump auth.users + public.users stats to static JSON via service_role key."""
-    import sys
-    from supabase import create_client
-
-    url = st.secrets.get("SUPABASE_URL", "")
-    service_key = st.secrets.get("SUPABASE_SERVICE_KEY", "")
-    if not url or not service_key:
-        _write_admin_result({"error": "SUPABASE_URL or SUPABASE_SERVICE_KEY missing"})
-        st.error("SUPABASE_URL or SUPABASE_SERVICE_KEY missing from space secrets")
-        return
-
-    client = create_client(url, service_key)
-
-    results: dict[str, Any] = {"public_users": [], "auth_users": []}
-
-    # public.users
-    try:
-        resp = client.table("users").select("*", count="exact").execute()
-        results["public_users"] = resp.data
-        results["public_users_count"] = resp.count
-    except Exception as e:
-        results["public_users_error"] = str(e)
-
-    # auth.users — OTP / verification status
-    try:
-        auth_resp = client.table("auth.users").select(
-            "email,confirmed_at,confirmation_sent_at,last_sign_in_at,created_at,deleted_at",
-            count="exact",
-        ).execute()
-        results["auth_users"] = auth_resp.data
-        results["auth_users_count"] = auth_resp.count
-    except Exception as e:
-        # Try RPC fallback
-        try:
-            auth_resp = client.rpc("list_users", {}).execute()
-            results["auth_users"] = auth_resp.data
-            results["auth_users_count"] = len(auth_resp.data) if auth_resp.data else 0
-            results["auth_users_source"] = "rpc_list_users"
-        except Exception as e2:
-            results["auth_users_error"] = str(e)
-            results["auth_users_rpc_error"] = str(e2)
-
-    _write_admin_result(results)
-    st.json(results)
-
-
-def _write_admin_result(data: dict[str, Any]) -> None:
-    """Write admin result to static file accessible via URL."""
-    static_dir = Path(__file__).resolve().parent / "static"
-    static_dir.mkdir(exist_ok=True)
-    out_path = static_dir / "auth_users.json"
-    out_path.write_text(json.dumps(data, default=str, indent=2), encoding="utf-8")
-# ═══════════════════════════════════════════════════════════════
-
-
 def main() -> None:
     init_state()
     inject_theme(st.session_state.get("theme", "light"))
-
-    # ── TEMPORARY ADMIN QUERY ──
-    # Access: ?admin=auth_users
-    # Reads auth.users via service_role key and dumps to static JSON.
-    if st.query_params.get("admin") == "auth_users":
-        _admin_dump_auth_users()
-        st.stop()
-    # ── END TEMPORARY ──
-
     email, symbol = render_sidebar()
     page_header(
         APP_TITLE,
