@@ -467,7 +467,14 @@ def _render_upgrade_ui(email: str, current_plan: str) -> None:
 
 
 def _activate_plan(email: str, payment_id: str, plan: str) -> None:
-    """Verify payment with Razorpay and update the users table."""
+    """Verify payment with Razorpay and update the users table.
+
+    Validates that the payment:
+    - Exists and is in 'captured' state
+    - Has the correct amount for the selected plan
+    - Belongs to the user's email address
+    - Was created for this application
+    """
     key_id = _secret("RAZORPAY_KEY_ID")
     key_secret = _secret("RAZORPAY_KEY_SECRET")
     if not key_id or not key_secret or _is_placeholder(key_id) or _is_placeholder(key_secret):
@@ -479,19 +486,58 @@ def _activate_plan(email: str, payment_id: str, plan: str) -> None:
             auth=(key_id, key_secret),
             timeout=10,
         )
-        if resp.status_code == 200 and resp.json().get("status") == "captured":
-            sb = get_supabase_admin()
-            if sb:
-                sb.table("users").update(
-                    {
-                        "plan": plan,
-                        "analyses_limit": TIER_LIMITS[plan],
-                    }
-                ).eq("email", _normalize_email(email)).execute()
-            st.success(f"{plan.upper()} plan activated. Reload to continue.")
-            st.balloons()
-        else:
+        if resp.status_code != 200:
+            st.error("Payment not found. Check your Payment ID and try again.")
+            return
+
+        payment = resp.json()
+        if payment.get("status") != "captured":
             st.error("Payment not captured yet. Try again in a moment.")
+            return
+
+        # ── Validate payment details match the plan ──
+        expected_amount = TIER_PRICES_PAISE.get(plan)
+        if expected_amount is None:
+            st.error(f"Unknown plan: {plan}")
+            return
+
+        actual_amount = int(payment.get("amount", 0))
+        if actual_amount != expected_amount:
+            st.error(
+                f"Payment amount (₹{actual_amount // 100}) does not match "
+                f"the {plan.upper()} plan price (₹{expected_amount // 100})."
+            )
+            return
+
+        # ── Validate email match ──
+        payment_email = (payment.get("email", "") or "").strip().lower()
+        if payment_email and payment_email != _normalize_email(email):
+            st.error(
+                "This payment is linked to a different email address. "
+                "Please use the email associated with the payment."
+            )
+            return
+
+        # ── Validate app notes ──
+        notes = payment.get("notes", {}) or {}
+        if notes.get("app") != APP_NAME:
+            st.error(
+                "This payment was not created for Stock Research Assistant. "
+                "Please use a valid upgrade payment ID."
+            )
+            return
+
+        # ── All checks passed — upgrade the user ──
+        sb = get_supabase_admin()
+        if sb:
+            sb.table("users").update(
+                {
+                    "plan": plan,
+                    "analyses_limit": TIER_LIMITS[plan],
+                }
+            ).eq("email", _normalize_email(email)).execute()
+        st.success(f"{plan.upper()} plan activated. Reload to continue.")
+        st.balloons()
     except Exception as exc:
         st.error(f"Verification failed: {exc}")
 

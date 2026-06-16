@@ -174,6 +174,80 @@ def _fetch_html(url: str, timeout: int) -> tuple[bool, str, str | None]:
         return False, "", f"Screener request failed for {url}: {exc}"
 
 
+def _fallback_from_yfinance(symbol: str) -> dict[str, Any]:
+    """Fallback to yfinance for key ratios when Screener.in is unavailable."""
+    from yf_client import ticker_info
+
+    try:
+        info = ticker_info(symbol)
+    except Exception as exc:
+        return {
+            "success": False,
+            "source": "yfinance_fallback",
+            "data": None,
+            "warnings": [f"yfinance fallback also failed: {exc}"],
+        }
+
+    if not info:
+        return {
+            "success": False,
+            "source": "yfinance_fallback",
+            "data": None,
+            "warnings": ["yfinance returned empty data for fallback"],
+        }
+
+    def _pct(val: Any) -> float | None:
+        if val is None:
+            return None
+        try:
+            return float(val) * 100
+        except (TypeError, ValueError):
+            return None
+
+    data = {
+        "symbol": _clean_symbol(symbol),
+        "url": "",
+        "years": [],
+        "profit_loss": {},
+        "balance_sheet": {},
+        "cash_flow": {},
+        "ratios": {
+            "market_cap": info.get("marketCap"),
+            "current_price": info.get("currentPrice") or info.get("regularMarketPrice"),
+            "stock_pe": info.get("trailingPE"),
+            "roe_pct": _pct(info.get("returnOnEquity")),
+            "debt_to_equity": info.get("debtToEquity"),
+            "dividend_yield": _pct(info.get("dividendYield")),
+            "book_value": info.get("bookValue"),
+            "roce_pct": _pct(info.get("returnOnCapitalEmployed")),
+            "interest_coverage": None,
+            "current_ratio": info.get("currentRatio"),
+        },
+        "ratio_series": {},
+        "growth": {
+            "sales_growth_3yr_pct": info.get("revenueGrowth"),
+            "sales_growth_5yr_pct": None,
+            "profit_growth_3yr_pct": info.get("earningsGrowth"),
+            "profit_growth_5yr_pct": None,
+        },
+        "quarterly": {},
+        "shareholding": {
+            "promoter_pct": None,
+            "pledged_promoter_pct": None,
+            "fii_pct": None,
+            "dii_pct": None,
+            "public_pct": None,
+        },
+    }
+
+    return {
+        "success": True,
+        "source": "yfinance_fallback",
+        "data": data,
+        "warnings": ["Screener.in unavailable; using yfinance data (limited metrics)"],
+    }
+
+
 def fetch_screener_financials(symbol: str) -> dict[str, Any]:
     """Fetch and parse 5-year financial data from Screener.in.
 

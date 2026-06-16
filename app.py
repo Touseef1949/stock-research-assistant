@@ -14,7 +14,22 @@ import plotly.graph_objects as go
 import streamlit as st
 import streamlit_shadcn_ui as ui
 
-from logic import resolve_ticker
+from logic import (
+    resolve_ticker,
+    to_nse_symbol,
+    display_symbol,
+    clamp_score,
+    safe_float,
+    money,
+    number,
+    pct,
+    compute_rsi,
+    compute_macd,
+    local_scores,
+    composite_score,
+    verdict_for_score,
+    parse_score,
+)
 from yf_client import (
     YFinanceRateLimitError,
     is_rate_limit_error,
@@ -2086,7 +2101,7 @@ def init_state() -> None:
         if key not in st.session_state:
             st.session_state[key] = value
     if "deep_research" not in st.session_state:
-        st.session_state["deep_research"] = {}
+        st.session_state["sra_deep_research"] = {}
     load_history_from_disk()
 
 
@@ -2098,73 +2113,6 @@ def get_deepseek_key() -> str:
     except Exception:
         return os.getenv("DEEPSEEK_API_KEY", "").strip()
     return os.getenv("DEEPSEEK_API_KEY", "").strip()
-
-
-def to_nse_symbol(symbol: str) -> str:
-    clean = re.sub(r"[^A-Za-z0-9.]", "", symbol or "").upper().strip(".")
-    if not clean:
-        return ""
-    return clean if clean.endswith(".NS") else f"{clean}.NS"
-
-
-def display_symbol(nse_symbol: str) -> str:
-    return nse_symbol.replace(".NS", "").upper()
-
-
-def clamp_score(value: float) -> float:
-    return max(1.0, min(10.0, float(value)))
-
-
-def safe_float(value: Any) -> float | None:
-    try:
-        if value is None or pd.isna(value):
-            return None
-        return float(value)
-    except Exception:
-        return None
-
-
-def money(value: Any) -> str:
-    value = safe_float(value)
-    if value is None:
-        return "Unavailable"
-    if abs(value) >= 1e12:
-        return f"₹{value / 1e12:.2f}T"
-    if abs(value) >= 1e10:
-        return f"₹{value / 1e10:.2f}K Cr"
-    if abs(value) >= 1e7:
-        return f"₹{value / 1e7:.2f}Cr"
-    return f"₹{value:,.0f}"
-
-
-def number(value: Any, suffix: str = "") -> str:
-    value = safe_float(value)
-    if value is None:
-        return "Unavailable"
-    return f"{value:,.2f}{suffix}"
-
-
-def pct(value: Any) -> str:
-    value = safe_float(value)
-    if value is None:
-        return "Unavailable"
-    return f"{value * 100:.2f}%"
-
-
-def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
-    delta = close.diff()
-    gain = delta.clip(lower=0).rolling(period).mean()
-    loss = -delta.clip(upper=0).rolling(period).mean()
-    rs = gain / loss.replace(0, pd.NA)
-    return 100 - (100 / (1 + rs))
-
-
-def compute_macd(close: pd.Series) -> tuple[pd.Series, pd.Series]:
-    ema12 = close.ewm(span=12, adjust=False).mean()
-    ema26 = close.ewm(span=26, adjust=False).mean()
-    macd = ema12 - ema26
-    signal = macd.ewm(span=9, adjust=False).mean()
-    return macd, signal
 
 
 def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
@@ -2395,91 +2343,8 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
     }
 
 
-def local_scores(data: dict[str, Any]) -> dict[str, float]:
-    f = data["fundamentals"]
-    t = data["technicals"]
-
-    fundamentals = 5.0
-    pe = safe_float(f.get("trailing_pe"))
-    if pe is not None:
-        if 0 < pe <= 25:
-            fundamentals += 1.3
-        elif pe <= 40:
-            fundamentals += 0.4
-        elif pe > 60:
-            fundamentals -= 1.3
-    roe = safe_float(f.get("roe"))
-    if roe is not None:
-        if roe >= 0.18:
-            fundamentals += 1.4
-        elif roe >= 0.12:
-            fundamentals += 0.7
-        elif roe < 0.06:
-            fundamentals -= 1.0
-    debt = safe_float(f.get("debt_to_equity"))
-    if debt is not None:
-        if debt <= 60:
-            fundamentals += 0.8
-        elif debt > 180:
-            fundamentals -= 1.2
-    growth = safe_float(f.get("revenue_growth"))
-    if growth is not None:
-        fundamentals += 0.8 if growth > 0.10 else -0.5 if growth < 0 else 0
-
-    technicals = 5.0
-    if t.get("trend") == "Bullish":
-        technicals += 1.4
-    elif t.get("trend") == "Bearish":
-        technicals -= 1.4
-    rsi = safe_float(t.get("rsi"))
-    if rsi is not None:
-        if 45 <= rsi <= 65:
-            technicals += 0.9
-        elif 30 <= rsi < 45:
-            technicals += 0.2
-        elif rsi > 75 or rsi < 25:
-            technicals -= 0.9
-    macd = safe_float(t.get("macd"))
-    signal = safe_float(t.get("macd_signal"))
-    if macd is not None and signal is not None:
-        technicals += 0.7 if macd > signal else -0.4
-    one_year = safe_float(t.get("return_1y_pct"))
-    if one_year is not None:
-        technicals += 0.8 if one_year > 15 else -0.6 if one_year < -15 else 0
-
-    risk = 7.0
-    drawdown = abs(safe_float(t.get("max_drawdown_pct")) or 0)
-    volatility = safe_float(t.get("volatility_60d_pct")) or 0
-    beta = safe_float(f.get("beta"))
-    if drawdown > 35:
-        risk -= 2.0
-    elif drawdown > 22:
-        risk -= 1.0
-    if volatility > 45:
-        risk -= 1.2
-    elif volatility > 32:
-        risk -= 0.6
-    if debt is not None and debt > 180:
-        risk -= 0.8
-    if beta is not None and beta > 1.4:
-        risk -= 0.6
-
-    sentiment = 5.0
-    if one_year is not None:
-        sentiment += 0.7 if one_year > 10 else -0.5 if one_year < -10 else 0
-    if growth is not None:
-        sentiment += 0.5 if growth > 0.08 else -0.4 if growth < 0 else 0
-
-    return {
-        "Fundamentals": clamp_score(fundamentals),
-        "Technicals": clamp_score(technicals),
-        "Sentiment": clamp_score(sentiment),
-        "Risk": clamp_score(risk),
-    }
-
-
 def fallback_result(name: str, data: dict[str, Any], reason: str) -> AgentResult:
-    score = local_scores(data)[name]
+    score = local_scores(data["fundamentals"], data["technicals"])[name]
     f = data["fundamentals"]
     t = data["technicals"]
     details = {
@@ -2540,13 +2405,6 @@ Max drawdown: {number(t.get('max_drawdown_pct'), '%')}
 """.strip()
 
 
-def parse_score(text: str) -> float | None:
-    match = re.search(r"SCORE\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*10", text or "", re.I)
-    if not match:
-        return None
-    return clamp_score(float(match.group(1)))
-
-
 def run_agent(agent: Any, prompt: str, dependencies: dict[str, Any]) -> str:
     response = agent.run(prompt, dependencies=dependencies)
     content = getattr(response, "content", response)
@@ -2564,7 +2422,7 @@ def agent_or_fallback(
         content = run_agent(agent, prompt, dependencies)
         score = parse_score(content)
         if score is None:
-            local = local_scores(data)[name]
+            local = local_scores(data["fundamentals"], data["technicals"])[name]
             content = f"SCORE: {local:.1f}/10\n{content}\n\nScore parser fallback applied."
             score = local
         return AgentResult(name=name, content=content, score=score, source="agent")
@@ -2680,7 +2538,7 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
     if progress_callback:
         progress_callback(80, "Generating report...")
 
-    composite = composite_score(outputs)
+    composite = composite_score({name: r.score for name, r in outputs.items()})
     verdict, _ = verdict_for_score(composite)
     coordinator_prompt = (
         f"Create the final executive summary for {nse_symbol} with verdict {verdict} "
@@ -2709,7 +2567,7 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
 
 def run_local_pipeline(data: dict[str, Any], reason: str) -> dict[str, Any]:
     outputs = {name: fallback_result(name, data, reason) for name in SCORE_ORDER}
-    composite = composite_score(outputs)
+    composite = composite_score({name: r.score for name, r in outputs.items()})
     verdict, _ = verdict_for_score(composite)
     return {
         "mode": "local",
@@ -2729,27 +2587,8 @@ def format_agent_outputs(outputs: dict[str, AgentResult]) -> str:
     )
 
 
-def composite_score(outputs: dict[str, AgentResult]) -> float:
-    weights = {"Fundamentals": 0.32, "Technicals": 0.26, "Sentiment": 0.18, "Risk": 0.24}
-    total = sum(outputs[name].score * weights[name] for name in weights if name in outputs)
-    used = sum(weights[name] for name in weights if name in outputs)
-    return clamp_score(total / used) if used else 5.0
-
-
-def verdict_for_score(score: float) -> tuple[str, str]:
-    if score >= 8.0:
-        return "STRONG BUY", "strong-buy"
-    if score >= 6.8:
-        return "BUY", "buy"
-    if score >= 5.2:
-        return "HOLD", "hold"
-    if score >= 4.0:
-        return "SELL", "sell"
-    return "AVOID", "avoid"
-
-
 def build_local_summary(data: dict[str, Any], outputs: dict[str, AgentResult], reason: str) -> str:
-    composite = composite_score(outputs)
+    composite = composite_score({name: r.score for name, r in outputs.items()})
     verdict, _ = verdict_for_score(composite)
     t = data["technicals"]
     f = data["fundamentals"]
@@ -2774,7 +2613,7 @@ def get_agent_output(result: dict[str, Any], data: dict[str, Any], name: str) ->
         return AgentResult(
             name=name,
             content=str(output.get("content") or "No agent notes were returned."),
-            score=clamp_score(output.get("score", local_scores(data)[name])),
+            score=clamp_score(output.get("score", local_scores(data["fundamentals"], data["technicals"])[name])),
             source=str(output.get("source") or "agent"),
         )
     return fallback_result(name, data, f"{name} agent output was unavailable.")
@@ -3344,7 +3183,7 @@ def render_sidebar() -> tuple[str, str]:
             )
 
         # ── 4. History + Help ──
-        if st.session_state.history:
+        if st.session_state.sra_report_history:
             st.divider()
             st.markdown(
                 """
@@ -3355,7 +3194,7 @@ def render_sidebar() -> tuple[str, str]:
                 """,
                 unsafe_allow_html=True,
             )
-            for item in st.session_state.history[:HISTORY_DISPLAY_LIMIT]:
+            for item in st.session_state.sra_report_history[:HISTORY_DISPLAY_LIMIT]:
                 symbol_text = str(item.get("symbol") or "Stock")
                 verdict_text = str(item.get("verdict") or "Unavailable")
                 timestamp = str(item.get("timestamp") or "")
@@ -3795,7 +3634,7 @@ def _render_deep_placeholder() -> None:
 
 def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None = None) -> None:
     if "deep_research" not in st.session_state:
-        st.session_state["deep_research"] = {}
+        st.session_state["sra_deep_research"] = {}
 
     active_symbol = _deep_symbol(data, symbol)
     if not active_symbol:
@@ -3817,7 +3656,7 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
     with col_run:
         run_clicked = st.button("Run Deep Research", type="primary", use_container_width=True, key=f"run_deep_{active_symbol}")
     with col_status:
-        existing = st.session_state["deep_research"].get(active_symbol)
+        existing = st.session_state["sra_deep_research"].get(active_symbol)
         st.caption("Cached for this session." if existing else "No deep research result yet for this symbol.")
 
     if run_clicked:
@@ -3829,13 +3668,13 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
             unsafe_allow_html=True,
         )
         result = run_deep_research(active_symbol, data, api_key, peer_tickers=peer_tickers)
-        st.session_state["deep_research"][active_symbol] = result
+        st.session_state["sra_deep_research"][active_symbol] = result
         wit.empty()
         if result.get("warnings"):
             st.warning("\n".join(result.get("warnings", [])[:8]))
         st.success("Deep Research completed.")
 
-    deep_result = st.session_state["deep_research"].get(active_symbol)
+    deep_result = st.session_state["sra_deep_research"].get(active_symbol)
     if not deep_result:
         _render_deep_placeholder()
         return
@@ -4024,7 +3863,7 @@ def save_report(data: dict[str, Any], result: dict[str, Any], email: str = "") -
 def load_history_from_disk() -> None:
     email = str(st.session_state.get("user_email", "") or "").strip().lower()
     if not email:
-        st.session_state.history = []
+        st.session_state.sra_report_history = []
         st.session_state["_history_email"] = ""
         return
 
@@ -4058,7 +3897,7 @@ def load_history_from_disk() -> None:
                 "email": payload_email,
             }
         )
-    st.session_state.history = history
+    st.session_state.sra_report_history = history
     st.session_state["_history_email"] = email
     enforce_report_cap()
 
@@ -4070,8 +3909,8 @@ def load_report(symbol: str, timestamp: str) -> bool:
     data, result = restore_report_payload(payload)
     if not data or not result:
         return False
-    st.session_state.data = data
-    st.session_state.result = result
+    st.session_state.sra_market_data = data
+    st.session_state.sra_result = result
     return True
 
 
@@ -4099,8 +3938,8 @@ def add_history(data: dict[str, Any], result: dict[str, Any]) -> None:
     saved = save_report(data, result, email=email)
     if saved:
         item.update(saved)
-    history = [item] + list(st.session_state.history)
-    st.session_state.history = history[:MAX_REPORT_FILES]
+    history = [item] + list(st.session_state.sra_report_history)
+    st.session_state.sra_report_history = history[:MAX_REPORT_FILES]
 
 
 def render_empty_preview() -> None:
@@ -4204,8 +4043,8 @@ def main() -> None:
             info_alert("DEEPSEEK_API_KEY missing. Using yfinance-only local scoring.", "warning")
 
     if hero_analyze:
-        st.session_state.data = None
-        st.session_state.result = None
+        st.session_state.sra_market_data = None
+        st.session_state.sra_result = None
 
         if not require_payment(email):
             st.stop()
@@ -4264,8 +4103,8 @@ def main() -> None:
             label_placeholder.empty()
             wit_placeholder.empty()
             progress_shell.empty()
-            st.session_state.data = data
-            st.session_state.result = result
+            st.session_state.sra_market_data = data
+            st.session_state.sra_result = result
             add_history(data, result)
             track_usage(email, "stock_research")
         except Exception as exc:
@@ -4285,8 +4124,8 @@ def main() -> None:
             else:
                 st.error(f"Analysis failed: {exc}")
 
-    if st.session_state.data and st.session_state.result:
-        render_result(st.session_state.data, st.session_state.result)
+    if st.session_state.sra_market_data and st.session_state.sra_result:
+        render_result(st.session_state.sra_market_data, st.session_state.sra_result)
     else:
         sample_report_preview(symbol)
 
