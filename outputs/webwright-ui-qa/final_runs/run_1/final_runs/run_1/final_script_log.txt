@@ -1,0 +1,30 @@
+# UI Regression Suite — Run 1
+# Started: 2026-06-16T15:47:33.867105
+
+step 1 action: Navigate to app
+step 1 action: Page title: Stock Research Assistant
+step 1 action: CP1 ✓ — App loaded — /Users/touseefshaik/Documents/Pythonproject/Touseef_Project_Work/Stock_Research_Assistant/outputs/webwright-ui-qa/final_runs/run_1/final_runs/run_1/screenshots/01_app_loaded.png
+step 2 action: Check sidebar
+step 2 action: CP2 ✓ — Sidebar renders correctly — /Users/touseefshaik/Documents/Pythonproject/Touseef_Project_Work/Stock_Research_Assistant/outputs/webwright-ui-qa/final_runs/run_1/final_runs/run_1/screenshots/02_sidebar.png
+step 3 action: Check quick-pick buttons
+step 3 action: CP3 ✓ — All 3 quick-pick buttons visible
+step 4 action: Check ticker input
+step 4 action: CP4 ✓ — Ticker input found
+step 5 action: Check email input
+step 5 action: CP5 ✓ — Email input found
+step 6 action: Check Send OTP button
+step 6 action: CP6 ✓ — Send OTP button found
+step 7 action: Click RELIANCE quick pick
+step 7 action: CP7 ✓ — RELIANCE quick pick worked — /Users/touseefshaik/Documents/Pythonproject/Touseef_Project_Work/Stock_Research_Assistant/outputs/webwright-ui-qa/final_runs/run_1/final_runs/run_1/screenshots/07_reliance_picked.png
+step 8 action: Check theme toggle
+step 8 action: CP8 ✓ — Theme toggle found (Switch theme (☀️ Light))
+step 9 action: Stress test: click TCS quick pick
+step 9 action: CP9 ✓ — TCS quick pick worked without crash — /Users/touseefshaik/Documents/Pythonproject/Touseef_Project_Work/Stock_Research_Assistant/outputs/webwright-ui-qa/final_runs/run_1/final_runs/run_1/screenshots/09_tcs_picked.png
+step 10 action: Check browser console
+step 10 action: CP10 ✓ — No JS console errors detected
+step 11 action: Check footer
+step 11 action: CP11 ✓ — Page content present (no semantic footer)
+step 11 action: Final state captured — /Users/touseefshaik/Documents/Pythonproject/Touseef_Project_Work/Stock_Research_Assistant/outputs/webwright-ui-qa/final_runs/run_1/final_runs/run_1/screenshots/99_final_state.png
+
+# Completed: 2026-06-16T15:48:09.787090
+# Steps executed: 11
