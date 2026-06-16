@@ -2,7 +2,7 @@
 
 All yfinance calls in the app must go through this module so that:
 - 429 / Too Many Requests from Yahoo Finance are retried with exponential backoff
-- shared Hugging Face IPs get a short cooling-off period
+- shared Hugging Face IPs get a cooling-off period
 - failures return structured errors instead of crashing the whole analysis
 """
 
@@ -30,30 +30,41 @@ class YFinanceRateLimitError(Exception):
     """Raised when Yahoo Finance returns a 429 / rate-limit response."""
 
 
-_MAX_RETRIES = 3
-_BASE_DELAY = 2.0
-_MAX_DELAY = 20.0
+_MAX_RETRIES = 4
+_BASE_DELAY = 3.0
+_MAX_DELAY = 30.0
 
 _USER_AGENTS = [
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
 ]
 
 
-def _session() -> Any:
+def _fresh_session() -> Any:
+    """Build a brand-new requests session for each yfinance call.
+
+    Reusing a session after a 429 can keep the blocked crumb/cookie state.
+    Fresh sessions give each attempt the best chance of passing Yahoo's front door.
+    """
     if requests is None:
         return None
     session = requests.Session()
     session.headers.update({
         "User-Agent": random.choice(_USER_AGENTS),
-        "Accept": "application/json",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
     })
     return session
 
-
-_SESSION = _session()
 
 def _is_rate_limit_error(exc: Exception) -> bool:
     """Detect Yahoo Finance / upstream rate-limit exceptions."""
@@ -61,10 +72,12 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     rate_limit_markers = (
         "too many requests",
         "rate limit",
+        "rate limited",
         "429",
         "unauthorized",
         "blocked",
         "forbidden",
+        "yfratelimiterror",
     )
     if any(marker in text for marker in rate_limit_markers):
         return True
@@ -80,7 +93,10 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 
 def _sleep_with_jitter(attempt: int) -> None:
-    """Exponential backoff with full jitter."""
+    """Exponential backoff with full jitter.
+
+    Attempt 0: 0-3s, attempt 1: 0-6s, attempt 2: 0-12s, attempt 3: 0-24s, attempt 4: 0-30s
+    """
     delay = min(_BASE_DELAY * (2**attempt), _MAX_DELAY)
     jitter = random.uniform(0, delay)
     time.sleep(jitter)
@@ -108,13 +124,13 @@ def _call_with_retry(fn: Callable[[], T], operation: str) -> T:
 
 
 def ticker_info(symbol: str) -> dict[str, Any]:
-    """Fetch ticker.info with retry/backoff."""
+    """Fetch ticker.info with retry/backoff and a fresh session per attempt."""
     if yf is None:
         return {}
 
     def _fetch() -> dict[str, Any]:
         try:
-            ticker = yf.Ticker(symbol, session=_SESSION)
+            ticker = yf.Ticker(symbol, session=_fresh_session())
             info = ticker.info or {}
             return dict(info)
         except Exception as exc:
@@ -131,13 +147,13 @@ def ticker_history(
     interval: str = "1d",
     auto_adjust: bool = False,
 ) -> Any:
-    """Fetch ticker history with retry/backoff."""
+    """Fetch ticker history with retry/backoff and a fresh session per attempt."""
     if yf is None:
         return None
 
     def _fetch() -> Any:
         try:
-            return yf.Ticker(symbol, session=_SESSION).history(
+            return yf.Ticker(symbol, session=_fresh_session()).history(
                 period=period,
                 interval=interval,
                 auto_adjust=auto_adjust,

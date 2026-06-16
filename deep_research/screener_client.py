@@ -54,8 +54,15 @@ def _to_number(value: Any) -> float | None:
     if not text or text in {"-", "--", "NA", "N/A"}:
         return None
     negative = text.startswith("(") and text.endswith(")")
+    # Normalize lakh/crore markers and currency symbols before extracting the number.
     text = text.replace(",", "").replace("%", "").replace("₹", "").replace("Rs.", "")
     text = text.replace("Cr.", "").replace("Cr", "").replace("x", "")
+    # Convert "Lakhs" / "L" into crore-scale for consistency (1 Cr = 100 L).
+    if re.search(r"\d+L$", text, re.I) or re.search(r"\d+\s+L$", text, re.I):
+        text = text.replace("L", "").replace("l", "").replace("Lakhs", "").replace("Lakh", "")
+        match = re.search(r"[-+]?\d*\.?\d+", text)
+        if match:
+            return float(match.group(0)) / 100
     match = re.search(r"[-+]?\d*\.?\d+", text)
     if not match:
         return None
@@ -130,8 +137,13 @@ def _extract_top_ratios(html: str) -> dict[str, float | None]:
             "Interest Coverage", "Current Ratio", "PEG Ratio",
         ]
         for label in known_labels:
-            if text.lower().startswith(label.lower()):
-                ratios[label.lower().replace(" ", "_").replace("/", "_")] = _to_number(text[len(label):])
+            lowered = text.lower()
+            label_lower = label.lower()
+            if lowered.startswith(label_lower):
+                value_text = text[len(label):]
+                # Also accept labels with embedded currency symbols like '₹ 9,42,308 Cr.'
+                value_text = re.sub(r"^[\s:₹Rs.]+", "", value_text)
+                ratios[label.lower().replace(" ", "_").replace("/", "_")] = _to_number(value_text)
                 break
     return ratios
 
@@ -262,6 +274,25 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
 
         quarterly_sales = _find_row(quarterly_rows, ["Sales", "Revenue"], 6)
         quarterly_opm = _find_row(quarterly_rows, ["OPM %", "Operating Profit Margin"], 6)
+
+        # ── Fallback: parse top ratios from the full HTML body if the <li> parser missed them.
+        if not top_ratios.get("market_cap"):
+            for label, key in [
+                ("Market Cap", "market_cap"),
+                ("Current Price", "current_price"),
+                ("Stock P/E", "stock_p_e"),
+                ("ROE", "roe"),
+                ("ROCE", "roce"),
+                ("Dividend Yield", "dividend_yield"),
+                ("Book Value", "book_value"),
+                ("Debt to equity", "debt_to_equity"),
+            ]:
+                if top_ratios.get(key):
+                    continue
+                pattern = rf"{re.escape(label)}\s*[:₹Rs.]\s*([0-9,\.\s]+(?:Cr\.|Lakh)?)"
+                match = re.search(pattern, html, flags=re.I | re.S)
+                if match:
+                    top_ratios[key] = _to_number(match.group(1))
 
         data = {
             "symbol": cleaned_symbol,

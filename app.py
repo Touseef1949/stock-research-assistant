@@ -68,6 +68,7 @@ from ui import (
 
 from deep_research import run_deep_research
 from deep_research.report import build_enhanced_pdf
+from deep_research.screener_client import fetch_screener_financials
 
 
 APP_TITLE = "Stock Research Assistant"
@@ -2166,15 +2167,168 @@ def compute_macd(close: pd.Series) -> tuple[pd.Series, pd.Series]:
     return macd, signal
 
 
+def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
+    """Build a market_data dict from Screener.in when yfinance is rate-limited."""
+    base = display_symbol(nse_symbol)
+    screener = fetch_screener_financials(nse_symbol)
+    if not screener.get("success"):
+        raise RuntimeError(
+            "Yahoo Finance is rate-limiting and Screener.in fallback also failed: "
+            + "; ".join(screener.get("warnings", []))
+        )
+
+    d = screener.get("data", {})
+    ratios = d.get("ratios", {})
+    price = safe_float(ratios.get("current_price")) or 0.0
+    if not price:
+        # Last resort: try a simple web search extraction for current price
+        price = _current_price_from_web_search(base)
+
+    name = base
+    if not price:
+        raise RuntimeError(
+            f"Could not determine current price for {nse_symbol} from Screener or web search."
+        )
+
+    market_cap_cr = safe_float(ratios.get("market_cap"))
+    market_cap = market_cap_cr * 10_000_000 if market_cap_cr else None
+    stock_pe = safe_float(ratios.get("stock_pe"))
+    book_value = safe_float(ratios.get("book_value"))
+    price_to_book = (price / book_value) if book_value else None
+    roe_pct = safe_float(ratios.get("roe_pct"))
+    roce_pct = safe_float(ratios.get("roce_pct"))
+    debt_to_equity = safe_float(ratios.get("debt_to_equity"))
+    dividend_yield = safe_float(ratios.get("dividend_yield"))
+    if dividend_yield is not None and dividend_yield > 1:
+        dividend_yield = dividend_yield / 100
+
+    growth = d.get("growth", {})
+    revenue_growth = safe_float(growth.get("sales_growth_3yr_pct"))
+    if revenue_growth is not None:
+        revenue_growth = revenue_growth / 100
+
+    # Build a minimal synthetic history DataFrame so technical indicator code doesn't crash.
+    hist = _synthetic_history(price)
+
+    fundamentals = {
+        "market_cap": market_cap,
+        "trailing_pe": stock_pe,
+        "forward_pe": None,
+        "price_to_book": price_to_book,
+        "roe": roe_pct / 100 if roe_pct is not None else None,
+        "debt_to_equity": debt_to_equity,
+        "revenue_growth": revenue_growth,
+        "dividend_yield": dividend_yield,
+        "profit_margins": None,
+        "beta": None,
+    }
+    technicals = {
+        "trend": "Neutral",
+        "rsi": 50.0,
+        "macd": 0.0,
+        "macd_signal": 0.0,
+        "ema20": price,
+        "ema50": price,
+        "support": price * 0.95,
+        "resistance": price * 1.05,
+        "avg_volume_20d": 0.0,
+        "latest_volume": 0.0,
+        "max_drawdown_pct": -5.0,
+        "return_1y_pct": 0.0,
+        "volatility_60d_pct": 15.0,
+    }
+
+    return {
+        "symbol": nse_symbol,
+        "base_symbol": base,
+        "name": name,
+        "exchange": "NSE",
+        "currency": "INR",
+        "price": price,
+        "change": 0.0,
+        "change_pct": 0.0,
+        "history": hist,
+        "info": {},
+        "fundamentals": fundamentals,
+        "technicals": technicals,
+        "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
+        "source": "screener_fallback",
+        "screener_data": screener,
+    }
+
+
+def _safe_ratio_name(name: str) -> str:
+    """Return a display name for the data source."""
+    return str(name or "Unknown")
+
+
+def _market_data_source_badge(data: dict[str, Any]) -> str:
+    if data.get("source") == "screener_fallback":
+        return "📡 Live market data from Screener.in (Yahoo Finance was temporarily unavailable)"
+    return "📈 Market data from Yahoo Finance"
+
+
+def _synthetic_history(price: float) -> Any:
+    """Create a minimal single-row history DataFrame as a safe placeholder."""
+    try:
+        import pandas as pd
+    except Exception:
+        return None
+    today = pd.Timestamp.now().normalize()
+    df = pd.DataFrame(
+        {
+            "Open": [price],
+            "High": [price],
+            "Low": [price],
+            "Close": [price],
+            "Volume": [0],
+            "Adj Close": [price],
+        },
+        index=pd.DatetimeIndex([today], name="Date"),
+    )
+    df["EMA20"] = price
+    df["EMA50"] = price
+    df["RSI14"] = 50.0
+    df["MACD"] = 0.0
+    df["MACDSignal"] = 0.0
+    return df
+
+
+def _current_price_from_web_search(symbol: str) -> float | None:
+    """Try to extract a current price from web search snippets."""
+    try:
+        from ddgs import DDGS
+        with DDGS() as ddgs:
+            results = list(ddgs.text(f"{symbol} NSE share price today", max_results=5))
+        for result in results:
+            body = str(result.get("body", ""))
+            # Match patterns like 'Rs 1,021', '₹1,021', '1021.35'
+            for match in re.finditer(r"(?:Rs\.?|₹)?\s*([0-9,]+(?:\.[0-9]+)?)", body):
+                value = match.group(1).replace(",", "")
+                try:
+                    num = float(value)
+                    if 10 < num < 50000:
+                        return num
+                except ValueError:
+                    continue
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_market_data(nse_symbol: str) -> dict[str, Any]:
     if yf is None:
-        raise RuntimeError("yfinance is not installed.")
+        # yfinance not installed — try Screener/web fallback directly.
+        return _market_data_from_screener(nse_symbol)
 
-    info = ticker_info(nse_symbol)
-    hist = ticker_history(nse_symbol, period="1y", interval="1d", auto_adjust=False)
-    if hist is None or hist.empty:
-        raise RuntimeError(f"No market data found for {nse_symbol}.")
+    try:
+        info = ticker_info(nse_symbol)
+        hist = ticker_history(nse_symbol, period="1y", interval="1d", auto_adjust=False)
+        if hist is None or hist.empty:
+            raise RuntimeError(f"No market data found for {nse_symbol}.")
+    except YFinanceRateLimitError:
+        return _market_data_from_screener(nse_symbol)
 
     hist = hist.dropna(subset=["Close"]).copy()
     close = hist["Close"]
@@ -2237,6 +2391,7 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
         "fundamentals": fundamentals,
         "technicals": technicals,
         "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
+        "source": "yfinance",
     }
 
 
@@ -2431,9 +2586,30 @@ def run_agent_pipeline(
         return run_local_pipeline(data, "Agno is not installed or could not be imported.")
 
     model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
-    yfinance_tools = [YFinanceTools()] if YFinanceTools else []
+    # Avoid YFinanceTools here: it makes extra yfinance calls that can trigger
+    # Yahoo rate limits on shared cloud IPs. We already pass full market context.
     news_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
-    context = build_context(data)
+    # When Yahoo Finance is rate-limited, use Screener fundamentals + web search.
+    if data.get("source") == "screener_fallback":
+        market_context = f"""
+Symbol: {nse_symbol}
+Company: {data.get('name', nse_symbol)}
+Price: ₹{data['price']:.2f}
+Source: Screener.in fallback (Yahoo Finance temporarily unavailable)
+Market cap: {money(data['fundamentals'].get('market_cap'))}
+Trailing P/E: {number(data['fundamentals'].get('trailing_pe'))}
+Price/book: {number(data['fundamentals'].get('price_to_book'))}
+ROE: {pct(data['fundamentals'].get('roe'))}
+Revenue growth (3Y CAGR): {number(data['fundamentals'].get('revenue_growth'))}
+Dividend yield: {pct(data['fundamentals'].get('dividend_yield'))}
+Debt/equity: {number(data['fundamentals'].get('debt_to_equity'))}
+Trend: {data['technicals'].get('trend')}
+Note: Use web search (DuckDuckGo) for latest price action, news, and sector context.
+""".strip()
+    else:
+        market_context = build_context(data)
+
+    context = market_context
     dependencies = {"symbol": nse_symbol, "context": context}
 
     shared_instructions = [
@@ -2445,16 +2621,16 @@ def run_agent_pipeline(
         "Fundamentals": Agent(
             name="Fundamentals",
             model=model,
-            tools=yfinance_tools,
+            tools=news_tools,
             instructions=shared_instructions
-            + ["Score valuation, quality, growth, profitability, and balance sheet strength."],
+            + ["Score valuation, quality, growth, profitability, and balance sheet strength. Use web search if key metrics are missing."],
         ),
         "Technicals": Agent(
             name="Technicals",
             model=model,
-            tools=yfinance_tools,
+            tools=news_tools,
             instructions=shared_instructions
-            + ["Score trend, momentum, levels, volume, and price action."],
+            + ["Score trend, momentum, levels, volume, and price action. Use web search for recent chart and news context when price history is unavailable."],
         ),
         "Sentiment": Agent(
             name="Sentiment",
@@ -2466,6 +2642,7 @@ def run_agent_pipeline(
         "Risk": Agent(
             name="Risk",
             model=model,
+            tools=news_tools,
             instructions=shared_instructions
             + ["Score risk where a higher score means lower risk and better risk/reward."],
         ),
@@ -3249,6 +3426,12 @@ def render_chart(data: dict[str, Any]) -> None:
     hist = data["history"]
     required = {"Open", "High", "Low", "Close"}
     fig = go.Figure()
+    if data.get("source") == "screener_fallback":
+        st.info(
+            "Price chart is unavailable because Yahoo Finance data was temporarily blocked. "
+            "The report below uses Screener.in fundamentals + web-search context instead."
+        )
+        return
     if required.issubset(hist.columns):
         fig.add_trace(
             go.Candlestick(
@@ -3335,6 +3518,7 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
             section_title("Executive Summary")
             with st.container(border=True):
                 st.markdown(result["final_report"])
+            st.caption(_market_data_source_badge(data))
             report_bytes, report_filename, report_mime = report_download_payload(data, result)
             st.download_button(
                 "📥 Download Report",
@@ -3370,7 +3554,8 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
                 st.markdown(agent_result.content)
         with st.expander("How this section is scored"):
             st.write(
-                "Each agent starts with the same market context. Agent mode uses the configured model/tools; local mode uses deterministic fallback scoring from the available yfinance data."
+                "Each agent starts with the same market context. Agent mode uses DeepSeek + web search; "
+                "local mode uses deterministic fallback scoring from the available market data."
             )
 
     with metrics_tab:
