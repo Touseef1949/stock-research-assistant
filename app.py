@@ -2424,7 +2424,7 @@ def run_agent_pipeline(
             progress_callback(95, None)
         return run_local_pipeline(data, "Agno is not installed or could not be imported.")
 
-    model = DeepSeek(id="deepseek-v4-pro", api_key=api_key, temperature=0.2)
+    model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
     yfinance_tools = [YFinanceTools()] if YFinanceTools else []
     news_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
     context = build_context(data)

@@ -112,7 +112,7 @@ Context:
 
     try:
         agent = Agent(
-            model=DeepSeek(id="deepseek-v4-pro", api_key=api_key),
+            model=DeepSeek(id="deepseek-v4-flash", api_key=api_key),
             instructions=[
                 "You produce concise, evidence-grounded Indian equity research.",
                 "Return JSON only. Do not include markdown fences.",
