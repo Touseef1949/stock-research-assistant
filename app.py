@@ -4181,6 +4181,7 @@ def _admin_dump_auth_users() -> None:
     url = st.secrets.get("SUPABASE_URL", "")
     service_key = st.secrets.get("SUPABASE_SERVICE_KEY", "")
     if not url or not service_key:
+        _write_admin_result({"error": "SUPABASE_URL or SUPABASE_SERVICE_KEY missing"})
         st.error("SUPABASE_URL or SUPABASE_SERVICE_KEY missing from space secrets")
         return
 
@@ -4199,7 +4200,7 @@ def _admin_dump_auth_users() -> None:
     # auth.users — OTP / verification status
     try:
         auth_resp = client.table("auth.users").select(
-            "email,confirmed_at,confirmation_sent_at,last_sign_in_at,created_at,updated_at,deleted_at",
+            "email,confirmed_at,confirmation_sent_at,last_sign_in_at,created_at,deleted_at",
             count="exact",
         ).execute()
         results["auth_users"] = auth_resp.data
@@ -4215,7 +4216,16 @@ def _admin_dump_auth_users() -> None:
             results["auth_users_error"] = str(e)
             results["auth_users_rpc_error"] = str(e2)
 
+    _write_admin_result(results)
     st.json(results)
+
+
+def _write_admin_result(data: dict[str, Any]) -> None:
+    """Write admin result to static file accessible via URL."""
+    static_dir = Path(__file__).resolve().parent / "static"
+    static_dir.mkdir(exist_ok=True)
+    out_path = static_dir / "auth_users.json"
+    out_path.write_text(json.dumps(data, default=str, indent=2), encoding="utf-8")
 # ═══════════════════════════════════════════════════════════════
 
 
