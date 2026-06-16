@@ -15,6 +15,12 @@ import streamlit as st
 import streamlit_shadcn_ui as ui
 
 from logic import resolve_ticker
+from yf_client import (
+    YFinanceRateLimitError,
+    is_rate_limit_error,
+    ticker_history,
+    ticker_info,
+)
 
 try:
     import yfinance as yf
@@ -2165,12 +2171,11 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
     if yf is None:
         raise RuntimeError("yfinance is not installed.")
 
-    ticker = yf.Ticker(nse_symbol)
-    hist = ticker.history(period="1y", interval="1d", auto_adjust=False)
-    if hist.empty:
+    info = ticker_info(nse_symbol)
+    hist = ticker_history(nse_symbol, period="1y", interval="1d", auto_adjust=False)
+    if hist is None or hist.empty:
         raise RuntimeError(f"No market data found for {nse_symbol}.")
 
-    info = ticker.info or {}
     hist = hist.dropna(subset=["Close"]).copy()
     close = hist["Close"]
     last_price = float(close.iloc[-1])
@@ -2228,6 +2233,7 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
         "change": change,
         "change_pct": change_pct,
         "history": hist,
+        "info": info,
         "fundamentals": fundamentals,
         "technicals": technicals,
         "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
@@ -2923,7 +2929,13 @@ def run_analysis(
             "Try the exact symbol (e.g. INFY) or a clearer company name."
         )
 
-    data = load_market_data(nse_symbol)
+    try:
+        data = load_market_data(nse_symbol)
+    except YFinanceRateLimitError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Could not load market data for {nse_symbol}: {exc}")
+
     if progress_callback:
         progress_callback(20, "Running AI analysis...")
     if api_key:
@@ -4080,7 +4092,13 @@ def main() -> None:
                 wit_placeholder.empty()
             if "progress_shell" in locals():
                 progress_shell.empty()
-            st.error(f"Analysis failed: {exc}")
+            if is_rate_limit_error(exc):
+                st.error(
+                    "Yahoo Finance is temporarily rate-limiting requests from this server. "
+                    "Please wait a minute and try again. We automatically retry, but shared cloud IPs can be blocked briefly."
+                )
+            else:
+                st.error(f"Analysis failed: {exc}")
 
     if st.session_state.data and st.session_state.result:
         render_result(st.session_state.data, st.session_state.result)

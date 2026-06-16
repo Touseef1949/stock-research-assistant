@@ -10,6 +10,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from yf_client import search_quotes, ticker_history, ticker_info
+
 try:
     import yfinance as yf
 except Exception:
@@ -133,18 +135,15 @@ def _validate_ticker(symbol: str) -> bool:
     if yf is None:
         return False
     try:
-        history = yf.Ticker(symbol).history(period="5d")
-        return not history.empty
+        history = ticker_history(symbol, period="5d")
+        return history is not None and not history.empty
     except Exception:
         return False
 
 
 def _search_yfinance(query: str) -> dict[str, str]:
-    if yf is None or not hasattr(yf, "Search"):
-        return {"symbol": "", "name": "", "source": "unknown"}
-    try:
-        quotes = getattr(yf.Search(query), "quotes", []) or []
-    except Exception:
+    quotes = search_quotes(query)
+    if not quotes:
         return {"symbol": "", "name": "", "source": "unknown"}
 
     def score(quote: dict[str, Any]) -> int:

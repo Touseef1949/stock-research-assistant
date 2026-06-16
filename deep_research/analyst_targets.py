@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from yf_client import ticker_info
+
 try:
     import yfinance as yf
 except Exception:  # pragma: no cover
@@ -48,7 +50,7 @@ def fetch_analyst_targets(symbol: str) -> dict[str, Any]:
         return {"success": False, "source": "yfinance", "data": None, "warnings": ["yfinance is not available"]}
 
     try:
-        info = yf.Ticker(ticker_symbol).info or {}
+        info = ticker_info(ticker_symbol)
     except Exception as exc:
         return {
             "success": False,

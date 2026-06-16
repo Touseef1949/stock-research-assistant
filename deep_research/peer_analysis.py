@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from yf_client import ticker_info
+
 try:
     import pandas as pd
 except Exception:  # pragma: no cover
@@ -73,10 +75,16 @@ def _get_nested(data: dict[str, Any], path: list[str], default: Any = None) -> A
 
 
 def _market_data_info(market_data: dict[str, Any]) -> dict[str, Any]:
+    if not market_data:
+        return {}
+    # Prefer the raw yfinance info dict if the app cached it.
+    if "info" in market_data and isinstance(market_data["info"], dict):
+        return market_data["info"]
+    fundamentals = market_data.get("fundamentals")
+    if isinstance(fundamentals, dict) and fundamentals:
+        return fundamentals
     return (
-        market_data.get("fundamentals")
-        or market_data.get("info")
-        or market_data.get("ticker_info")
+        market_data.get("ticker_info")
         or market_data.get("data", {}).get("fundamentals")
         or {}
     )
@@ -148,8 +156,7 @@ def _fetch_yfinance_info(symbol: str) -> tuple[dict[str, Any], str | None]:
         return {}, "yfinance is not available"
     ticker_symbol = _ensure_ns(symbol)
     try:
-        ticker = yf.Ticker(ticker_symbol)
-        info = ticker.info or {}
+        info = ticker_info(ticker_symbol)
         if not info:
             return {}, f"No yfinance info returned for {ticker_symbol}"
         return info, None
