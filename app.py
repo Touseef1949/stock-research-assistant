@@ -2084,9 +2084,9 @@ def _inject_mobile_styles() -> None:
 def init_state() -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     defaults = {
-        "data": None,
-        "result": None,
-        "history": [],
+        "sra_market_data": None,
+        "sra_result": None,
+        "sra_report_history": [],
         "_history_email": "",
         "symbol_input": "SBIN",
         "user_email": "",
@@ -2100,7 +2100,7 @@ def init_state() -> None:
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
-    if "deep_research" not in st.session_state:
+    if "sra_deep_research" not in st.session_state:
         st.session_state["sra_deep_research"] = {}
     load_history_from_disk()
 
