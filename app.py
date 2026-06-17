@@ -3387,8 +3387,14 @@ def _clean_email(email: str) -> str:
     return (email or "").strip().lower()
 
 
-def render_sidebar_access() -> str:
-    """Render sidebar access without duplicating footer plan/report details.
+def render_sidebar_access(interactive: bool = True) -> str:
+    """Render access / auth UI.
+
+    When *interactive* is ``True`` (default), the full email → OTP → verify
+    flow is rendered (used in the **main content area** via ``render_auth_gate``).
+
+    When *interactive* is ``False``, only the verified-state badge and plan
+    info are shown (used inside the **sidebar** for authenticated users).
 
     Verified state is guarded so that clicking the main "Generate Report" button
     (or any other sidebar interaction) does not accidentally reset authentication.
@@ -3410,13 +3416,16 @@ def render_sidebar_access() -> str:
             st.session_state.user_email = persisted_email
             st.session_state["_otp_email"] = persisted_email
 
-    st.markdown('<div class="sidebar-section-title">Access</div>', unsafe_allow_html=True)
-
-    # ── 2. Already verified → nothing else to do here ──
+    # ── 2. Already verified → show badge only ──
     verified_email = _clean_email(st.session_state.user_email)
     if is_authenticated() and verified_email:
         st.success(f"Verified as {verified_email}")
         return verified_email
+
+    # ── Non-interactive mode: nothing more to render ──
+    if not interactive:
+        st.caption("Sign in from the main page to start analysing stocks.")
+        return st.session_state.user_email if is_authenticated() else ""
 
     # ── 3. Offline / dev-mode bypass ──
     if _supabase_offline():
@@ -3506,6 +3515,37 @@ def render_sidebar_access() -> str:
     return st.session_state.user_email if is_authenticated() else ""
 
 
+def render_auth_gate() -> str:
+    """Render the auth flow in the **main content area** when not authenticated.
+
+    This replaces the old sidebar-based auth for mobile friendliness.
+    Returns the verified email string (empty if not yet authenticated).
+    """
+    # Fast-path: already authenticated → nothing to render
+    verified_email = _clean_email(st.session_state.get("user_email", ""))
+    if is_authenticated() and verified_email:
+        return verified_email
+
+    st.markdown(
+        """
+        <div style="max-width:480px; margin:2rem auto; padding:1.5rem 2rem;
+                    border-radius:16px;
+                    background:var(--card-bg, rgba(255,255,255,0.06));
+                    border:1px solid var(--border, rgba(255,255,255,0.08));
+                    box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+            <h3 style="margin:0 0 0.25rem; font-size:1.25rem;">🔐 Sign in to continue</h3>
+            <p style="margin:0 0 1rem; opacity:0.7; font-size:0.92rem;">
+                Verify your email to unlock AI-powered stock research reports.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    with st.container():
+        email = render_sidebar_access(interactive=True)
+    return email
+
+
 def render_sidebar_sign_out() -> None:
     verified_email = _clean_email(st.session_state.get("user_email", ""))
     if not (is_authenticated() and verified_email):
@@ -3554,8 +3594,9 @@ def render_sidebar() -> tuple[str, str]:
             unsafe_allow_html=True,
         )
 
-        # ── 2. Access (email OTP gate) ──
-        email = render_sidebar_access()
+        # ── 2. Access (verified-state badge only; interactive auth is in main area) ──
+        st.markdown('<div class="sidebar-section-title">Access</div>', unsafe_allow_html=True)
+        email = render_sidebar_access(interactive=False)
         current_history_email = str(email or "").strip().lower()
         if st.session_state.get("_history_email", "") != current_history_email:
             load_history_from_disk()
@@ -4448,7 +4489,16 @@ def render_analysis_progress_shell(active_label: str = "Resolving ticker") -> No
 def main() -> None:
     init_state()
     inject_theme(st.session_state.get("theme", "light"))
+
+    # ── Auth gate in main content area (mobile-friendly) ──
+    auth_email = render_auth_gate()
+
     email, symbol = render_sidebar()
+
+    # Prefer the email from render_auth_gate if render_sidebar returned empty
+    # (sidebar no longer collects email interactively).
+    if not email and auth_email:
+        email = auth_email
     page_header(
         APP_TITLE,
         "Five-agent equity research for NSE stocks with fundamentals, technicals, sentiment, risk, and a coordinated verdict.",
