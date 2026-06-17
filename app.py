@@ -3521,9 +3521,16 @@ def render_auth_gate() -> str:
     This replaces the old sidebar-based auth for mobile friendliness.
     Returns the verified email string (empty if not yet authenticated).
     """
-    # Fast-path: already authenticated → nothing to render
+    # Fast-path: already authenticated → show badge and return
     verified_email = _clean_email(st.session_state.get("user_email", ""))
     if is_authenticated() and verified_email:
+        from payment import get_user, TIER_LIMITS
+        user = get_user(verified_email)
+        plan = user.get("plan", "free") if isinstance(user, dict) else getattr(user, "plan", "free")
+        used = user.get("analyses_used", 0) if isinstance(user, dict) else st.session_state.get("_session_report_count", 0)
+        limit = user.get("analyses_limit", TIER_LIMITS["free"]) if isinstance(user, dict) else TIER_LIMITS["free"]
+        st.success(f"✓ Verified as {verified_email}")
+        st.caption(f"{plan.upper()} plan · {used}/{limit} analyses used")
         return verified_email
 
     st.markdown(
@@ -3679,14 +3686,12 @@ def render_sidebar() -> tuple[str, str]:
             unsafe_allow_html=True,
         )
 
-        # ── 2. Access (verified-state badge only; interactive auth is in main area) ──
-        st.markdown('<div class="sidebar-section-title">Access</div>', unsafe_allow_html=True)
-        email = render_sidebar_access(interactive=False)
-        current_history_email = str(email or "").strip().lower()
+        email = _clean_email(st.session_state.get("user_email", ""))
+        current_history_email = email
         if st.session_state.get("_history_email", "") != current_history_email:
             load_history_from_disk()
 
-        # ── 3. History + Help ──
+        # History + Help
         if st.session_state.sra_report_history:
             st.divider()
             st.markdown(
@@ -3735,8 +3740,6 @@ def render_sidebar() -> tuple[str, str]:
             """,
             unsafe_allow_html=True,
         )
-        render_sidebar_sign_out()
-
     # Symbol is now captured in the main content area via render_research_setup();
     # read it from session_state so the (email, symbol) return contract is honoured.
     symbol = st.session_state.get("symbol_input", "SBIN").strip()
