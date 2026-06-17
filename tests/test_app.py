@@ -10,6 +10,7 @@ from streamlit.testing.v1 import AppTest
 
 @pytest.fixture()
 def app(monkeypatch) -> AppTest:
+    """Unauthenticated app state — used by email gate tests."""
     import payment
 
     class AuthResponse:
@@ -39,47 +40,82 @@ def app(monkeypatch) -> AppTest:
     return at
 
 
+@pytest.fixture()
+def app_auth(monkeypatch) -> AppTest:
+    """Authenticated app state — used by research-setup / quick-pick tests."""
+    import payment
+
+    class AuthResponse:
+        session = object()
+        user = type("User", (), {"id": "test-user"})()
+
+    monkeypatch.setattr(payment, "_supabase_offline", lambda: True)
+    monkeypatch.setattr(payment, "send_otp", lambda email: True)
+    monkeypatch.setattr(payment, "verify_otp", lambda email, token: AuthResponse())
+    monkeypatch.setattr(payment, "_ensure_user_row", lambda email, user_id=None: None)
+    monkeypatch.setattr(
+        payment,
+        "get_user",
+        lambda email: {
+            "email": email,
+            "plan": "free",
+            "analyses_used": 0,
+            "analyses_limit": 5,
+        },
+    )
+    monkeypatch.setattr(payment, "load_auth", lambda: None)
+    monkeypatch.setattr(payment, "save_auth", lambda email: None)
+    monkeypatch.setattr(payment, "clear_auth", lambda: None)
+
+    at = AppTest.from_file("app.py")
+    at.run(timeout=60)
+    at.session_state["_auth_verified"] = True
+    at.session_state["user_email"] = "test@example.com"
+    at.run(timeout=60)
+    return at
+
+
 class TestSidebarQuickPicks:
-    def test_default_symbol_is_sbin(self, app: AppTest):
+    def test_default_symbol_is_sbin(self, app_auth: AppTest):
         """Company or ticker input defaults to SBIN."""
-        symbol_input = app.text_input(key="symbol_input")
+        symbol_input = app_auth.text_input(key="symbol_input")
         assert symbol_input.value == "SBIN"
 
-    def test_symbol_input_label_mentions_company_or_ticker(self, app: AppTest):
+    def test_symbol_input_label_mentions_company_or_ticker(self, app_auth: AppTest):
         """Symbol input accepts both company names and tickers."""
-        symbol_input = app.text_input(key="symbol_input")
+        symbol_input = app_auth.text_input(key="symbol_input")
         assert symbol_input.label == "Company or ticker"
 
-    def test_symbol_input_placeholder_mentions_name_and_ticker(self, app: AppTest):
+    def test_symbol_input_placeholder_mentions_name_and_ticker(self, app_auth: AppTest):
         """Symbol input placeholder includes a company name and ticker examples."""
-        symbol_input = app.text_input(key="symbol_input")
+        symbol_input = app_auth.text_input(key="symbol_input")
         assert symbol_input.placeholder == "Infosys, SBIN, RELIANCE..."
 
-    def test_clicking_reliance_updates_symbol_input(self, app: AppTest):
+    def test_clicking_reliance_updates_symbol_input(self, app_auth: AppTest):
         """Clicking 'RELIANCE · Reliance Industries' sets symbol_input to RELIANCE."""
-        btn = app.button(key="quick_RELIANCE")
+        btn = app_auth.button(key="quick_RELIANCE")
         assert btn.label is not None  # button rendered
         btn.click().run()
-        symbol_input = app.text_input(key="symbol_input")
+        symbol_input = app_auth.text_input(key="symbol_input")
         assert symbol_input.value == "RELIANCE"
 
-    def test_clicking_tcs_updates_symbol_input(self, app: AppTest):
+    def test_clicking_tcs_updates_symbol_input(self, app_auth: AppTest):
         """Clicking 'TCS · Tata Consultancy Services' sets symbol_input to TCS."""
-        app.button(key="quick_TCS").click().run()
-        assert app.text_input(key="symbol_input").value == "TCS"
+        app_auth.button(key="quick_TCS").click().run()
+        assert app_auth.text_input(key="symbol_input").value == "TCS"
 
-    def test_clicking_sbin_resets_to_sbin(self, app: AppTest):
+    def test_clicking_sbin_resets_to_sbin(self, app_auth: AppTest):
         """Clicking RELIANCE then SBIN should show SBIN."""
-        app.button(key="quick_RELIANCE").click().run()
-        app.button(key="quick_SBIN").click().run()
-        assert app.text_input(key="symbol_input").value == "SBIN"
+        app_auth.button(key="quick_RELIANCE").click().run()
+        app_auth.button(key="quick_SBIN").click().run()
+        assert app_auth.text_input(key="symbol_input").value == "SBIN"
 
-    def test_entering_company_name_survives_rerun(self, app: AppTest):
+    def test_entering_company_name_survives_rerun(self, app_auth: AppTest):
         """Typing Infosys keeps the company-name input available for resolver flow."""
-        app.text_input(key="symbol_input").set_value("Infosys").run()
+        app_auth.text_input(key="symbol_input").set_value("Infosys").run()
 
-        assert app.text_input(key="symbol_input").value == "Infosys"
-        assert app.session_state["symbol_input"] == "Infosys"
+        assert app_auth.text_input(key="symbol_input").value == "Infosys"
+        assert app_auth.session_state["symbol_input"] == "Infosys"
 
 
 class TestEmailGate:

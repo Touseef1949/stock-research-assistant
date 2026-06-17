@@ -3546,6 +3546,55 @@ def render_auth_gate() -> str:
     return email
 
 
+def render_research_setup() -> str:
+    """Render company picker + quick-pick buttons in the **main content area**.
+
+    Only shown when the user IS authenticated.  Returns the current symbol
+    string from session_state so callers can feed it to render_hero_action().
+    """
+    # Not authenticated → nothing to render; return whatever is in session_state.
+    verified_email = _clean_email(st.session_state.get("user_email", ""))
+    if not (is_authenticated() and verified_email):
+        return st.session_state.get("symbol_input", "SBIN")
+
+    # ── Research setup card ──
+    st.markdown(
+        """
+        <div class="sidebar-premium-card sidebar-research-card sidebar-research-card-compact"
+             style="max-width:640px;">
+            <span>Research setup</span>
+            <strong>Choose an NSE company</strong>
+            <p>Company name or ticker — we resolve it before the report runs.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if "symbol_input" not in st.session_state:
+        st.session_state.symbol_input = "SBIN"
+
+    symbol = st.text_input(
+        "Company or ticker",
+        key="symbol_input",
+        placeholder="Infosys, SBIN, RELIANCE...",
+        help="Enter a company name or NSE ticker. The app resolves names and appends .NS when required.",
+        label_visibility="collapsed",
+    ).strip()
+
+    # ── Quick-pick row (horizontal on desktop, scrollable on mobile) ──
+    qp_cols = st.columns(len(QUICK_PICKS))
+    for col, (quick_symbol, name) in zip(qp_cols, QUICK_PICKS.items()):
+        with col:
+            st.button(
+                f"{quick_symbol} · {name}",
+                key=f"quick_{quick_symbol}",
+                on_click=lambda s=quick_symbol: st.session_state.__setitem__("symbol_input", s),
+                use_container_width=True,
+            )
+
+    return symbol
+
+
 def render_sidebar_sign_out() -> None:
     verified_email = _clean_email(st.session_state.get("user_email", ""))
     if not (is_authenticated() and verified_email):
@@ -3567,8 +3616,44 @@ def render_sidebar_sign_out() -> None:
         st.rerun()
 
 
+def _do_sign_out() -> None:
+    """Shared sign-out logic called by both sidebar and main-area sign-out buttons."""
+    st.session_state.user_email = ""
+    st.session_state["_auth_verified"] = False
+    for key in ("_auth_verified", "_supabase_session", "_otp_sent", "_otp_email", "_email_input", "_otp_input"):
+        st.session_state.pop(key, None)
+    clear_auth()
+    client = get_supabase_client()
+    if client is not None:
+        try:
+            client.auth.sign_out()
+        except Exception:
+            pass
+
+
+def render_main_sign_out() -> None:
+    """Render a sign-out button in the **main content area** (below footer).
+
+    Uses a different widget key than the sidebar sign-out to avoid
+    Streamlit's DuplicateWidgetID error.
+    """
+    verified_email = _clean_email(st.session_state.get("user_email", ""))
+    if not (is_authenticated() and verified_email):
+        return
+
+    st.markdown("---")
+    if st.button("Sign out", key="main_sign_out", use_container_width=True):
+        _do_sign_out()
+        st.rerun()
+
+
 def render_sidebar() -> tuple[str, str]:
-    """Single sidebar block with correct order: Brand → Research → Access → History."""
+    """Sidebar with secondary controls: Brand → Access badge → History → Help.
+
+    The company picker and quick-pick buttons have been moved to the main
+    content area (``render_research_setup``) so that the core user flow
+    works without opening the sidebar on mobile devices.
+    """
     with st.sidebar:
         # ── 0. Theme toggle ──
         current_theme = st.session_state.get("theme", "light")
@@ -3601,47 +3686,7 @@ def render_sidebar() -> tuple[str, str]:
         if st.session_state.get("_history_email", "") != current_history_email:
             load_history_from_disk()
 
-        # ── 3. Research Setup ──
-        st.markdown(
-            """
-            <div class="sidebar-premium-card sidebar-research-card sidebar-research-card-compact">
-                <span>Research setup</span>
-                <strong>Choose an NSE company</strong>
-                <p>Company name or ticker — we resolve it before the report runs.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if "symbol_input" not in st.session_state:
-            st.session_state.symbol_input = "SBIN"
-
-        symbol = st.text_input(
-            "Company or ticker",
-            key="symbol_input",
-            placeholder="Infosys, SBIN, RELIANCE...",
-            help="Enter a company name or NSE ticker. The app resolves names and appends .NS when required.",
-            label_visibility="collapsed",
-        ).strip()
-
-        st.markdown(
-            """
-            <div class="sidebar-premium-card sidebar-quick-card">
-                <span>Quick-pick grid</span>
-                <strong>Start from a liquid large cap</strong>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        for quick_symbol, name in QUICK_PICKS.items():
-            st.button(
-                f"{quick_symbol} · {name}",
-                key=f"quick_{quick_symbol}",
-                on_click=lambda s=quick_symbol: st.session_state.__setitem__("symbol_input", s),
-                use_container_width=True,
-            )
-
-        # ── 4. History + Help ──
+        # ── 3. History + Help ──
         if st.session_state.sra_report_history:
             st.divider()
             st.markdown(
@@ -3692,6 +3737,9 @@ def render_sidebar() -> tuple[str, str]:
         )
         render_sidebar_sign_out()
 
+    # Symbol is now captured in the main content area via render_research_setup();
+    # read it from session_state so the (email, symbol) return contract is honoured.
+    symbol = st.session_state.get("symbol_input", "SBIN").strip()
     return email, symbol
 
 
@@ -4493,6 +4541,8 @@ def main() -> None:
     # ── Auth gate in main content area (mobile-friendly) ──
     auth_email = render_auth_gate()
 
+    # Sidebar: secondary controls (theme, brand, access badge, history, help).
+    # The company picker has moved to the main content area.
     email, symbol = render_sidebar()
 
     # Prefer the email from render_auth_gate if render_sidebar returned empty
@@ -4503,6 +4553,10 @@ def main() -> None:
         APP_TITLE,
         "Five-agent equity research for NSE stocks with fundamentals, technicals, sentiment, risk, and a coordinated verdict.",
     )
+
+    # ── Company picker + quick-picks IN MAIN CONTENT (mobile-first) ──
+    symbol = render_research_setup()
+
     hero_analyze = render_hero_action(symbol)
 
     api_key = get_deepseek_key()
@@ -4598,6 +4652,9 @@ def main() -> None:
         sample_report_preview(symbol)
 
     render_footer(email)
+
+    # ── Sign-out at the very bottom of the page (mobile-first) ──
+    render_main_sign_out()
 
 
 if __name__ == "__main__":
