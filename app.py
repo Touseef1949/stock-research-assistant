@@ -4643,8 +4643,10 @@ def main() -> None:
                 progress_shell.empty()
             if is_rate_limit_error(exc):
                 st.error(
-                    "Yahoo Finance is temporarily rate-limiting requests from this server. "
-                    "Please wait a minute and try again. We automatically retry, but shared cloud IPs can be blocked briefly."
+                    "All data sources (Yahoo Finance, Screener.in, and web price feeds) "
+                    "are temporarily unreachable from this cloud server. "
+                    "Shared IPs on Hugging Face Spaces get rate-limited occasionally. "
+                    "Please wait a minute and try again — your analysis will work."
                 )
             else:
                 st.error(f"Analysis failed: {exc}")

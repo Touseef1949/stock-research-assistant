@@ -142,7 +142,10 @@ def _validate_ticker(symbol: str) -> bool:
 
 
 def _search_yfinance(query: str) -> dict[str, str]:
-    quotes = search_quotes(query)
+    try:
+        quotes = search_quotes(query)
+    except Exception:
+        return {"symbol": "", "name": "", "source": "unknown"}
     if not quotes:
         return {"symbol": "", "name": "", "source": "unknown"}
 
