@@ -1950,12 +1950,18 @@ def _inject_mobile_styles() -> None:
             }
 
             /* ---------- 3. FONT SIZE FLOOR (WCAG 14px minimum) ---------- */
+            /* Use hard 14px override — max() doesn't beat Streamlit's !important */
+            .main .block-container p,
+            .main .block-container span,
+            .main .block-container label,
+            .main .block-container [data-testid="stWidgetLabel"],
+            .main .block-container [data-testid="stWidgetLabel"] label,
             .main .block-container [data-testid="stMarkdown"] p,
             .main .block-container [data-testid="stMarkdown"] span,
-            .main .block-container label,
-            .main .block-container [data-testid="stWidgetLabel"] label,
-            .main .block-container small {
-                font-size: max(0.875rem, inherit) !important;
+            .main .block-container small,
+            .main .block-container [data-testid="stCaptionContainer"],
+            .main .block-container [data-testid="stCaptionContainer"] p {
+                font-size: 0.875rem !important;
                 line-height: 1.4 !important;
             }
 
@@ -1964,11 +1970,12 @@ def _inject_mobile_styles() -> None:
             .main h2 { font-size: 1.25rem !important; }
             .main h3 { font-size: 1.125rem !important; }
 
-            /* Section labels that measured 10.88px */
-            .main .block-container [data-testid="stMarkdown"] span,
-            .main .block-container .section-label,
-            .main .block-container [data-testid="stWidgetLabel"] {
-                font-size: max(0.875rem, inherit) !important;
+            /* Section labels that measured 10.88px — force 14px */
+            [data-testid="stSidebar"] [data-testid="stMarkdown"] span,
+            [data-testid="stSidebar"] [data-testid="stMarkdown"] p,
+            [data-testid="stSidebar"] label,
+            [data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
+                font-size: 0.875rem !important;
             }
 
             /* ---------- 4. TAP TARGETS (44px minimum) ---------- */
