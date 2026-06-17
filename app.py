@@ -1870,6 +1870,7 @@ def _inject_component_styles(theme: str) -> None:
             unsafe_allow_html=True,
         )
     _inject_mobile_styles()
+    _inject_mobile_sidebar_close_js()
 
 
 def _inject_mobile_styles() -> None:
@@ -1890,7 +1891,9 @@ def _inject_mobile_styles() -> None:
                 top: 0 !important;
                 left: 0 !important;
                 bottom: 0 !important;
+                height: 100dvh !important;
                 width: min(320px, 85vw) !important;
+                max-width: 85vw !important;
                 z-index: 9999 !important;
                 transform: translateX(-100%) !important;
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -1907,7 +1910,62 @@ def _inject_mobile_styles() -> None:
                 width: 100% !important;
             }
 
-            /* Collapse button — proper FAB */
+            /* Scrim / backdrop — tappable area behind sidebar */
+            .stApp::after {
+                content: "" !important;
+                display: block !important;
+                position: fixed !important;
+                inset: 0 !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                z-index: 9998 !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                transition: opacity 0.3s ease, visibility 0.3s ease !important;
+                pointer-events: none !important;
+                -webkit-tap-highlight-color: transparent !important;
+            }
+
+            /* Show scrim when sidebar is open */
+            .stApp:has([data-testid="stSidebar"][aria-expanded="true"])::after {
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+                cursor: pointer !important;
+            }
+
+            /* Enlarge the close button — make it obvious */
+            [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] {
+                position: absolute !important;
+                top: 8px !important;
+                right: 8px !important;
+                z-index: 10001 !important;
+            }
+
+            [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button {
+                width: 48px !important;
+                height: 48px !important;
+                min-height: 48px !important;
+                border-radius: 12px !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                border: 1px solid rgba(0, 0, 0, 0.1) !important;
+                backdrop-filter: blur(8px) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: background 0.2s ease !important;
+            }
+
+            [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button:hover,
+            [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button:active {
+                background: rgba(0, 0, 0, 0.1) !important;
+            }
+
+            [data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"] button svg {
+                width: 24px !important;
+                height: 24px !important;
+            }
+
+            /* Collapse button — proper FAB when sidebar is closed */
             [data-testid="collapsedControl"] {
                 position: fixed !important;
                 top: 0.75rem !important;
@@ -2254,6 +2312,51 @@ def _inject_mobile_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def _inject_mobile_sidebar_close_js() -> None:
+    """JS to close sidebar when tapping outside it (on the scrim)."""
+    try:
+        import streamlit.components.v1 as components
+        components.html(
+            """
+<script>
+(function() {
+  function setupScrimClose() {
+    const app = document.querySelector('.stApp') || document.querySelector('[data-testid="stAppViewContainer"]');
+    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+    if (!app || !sidebar) {
+      setTimeout(setupScrimClose, 500);
+      return;
+    }
+    app.addEventListener('click', function(e) {
+      if (sidebar.getAttribute('aria-expanded') !== 'true') return;
+      const sidebarRect = sidebar.getBoundingClientRect();
+      // Click is outside the sidebar bounds = on the scrim
+      if (e.clientX > sidebarRect.right || e.clientX < sidebarRect.left) {
+        const collapseBtn = sidebar.querySelector(
+          '[data-testid="stSidebarCollapseButton"] button'
+        );
+        if (collapseBtn) collapseBtn.click();
+      }
+    }, { capture: true });
+  }
+  // Wait for Streamlit to fully render
+  setTimeout(setupScrimClose, 1000);
+  // Also re-setup on Streamlit reruns
+  const observer = new MutationObserver(function() {
+    clearTimeout(window._scrimTimer);
+    window._scrimTimer = setTimeout(setupScrimClose, 500);
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+""",
+            height=0,
+        )
+    except Exception:
+        pass
+
 
 def init_state() -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
