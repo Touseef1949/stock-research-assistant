@@ -1873,42 +1873,177 @@ def _inject_component_styles(theme: str) -> None:
 
 
 def _inject_mobile_styles() -> None:
-    """Responsive overrides so the app is usable on phones and small tablets."""
+    """Mobile UX overhaul — overlay drawer, 16px padding, 14px font floor, 44px tap targets."""
     st.markdown(
         """
         <style>
-        /* ---------- Mobile-first responsive stack ---------- */
+        /* ============================================
+           MOBILE UX OVERHAUL — Stock Research Assistant
+           Based on Claude Opus audit + Chrome DevTools measurements
+           ============================================ */
+
         @media (max-width: 768px) {
-            .block-container {
+
+            /* ---------- 1. SIDEBAR: FULL OVERLAY DRAWER ---------- */
+            [data-testid="stSidebar"] {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                width: min(320px, 85vw) !important;
+                z-index: 9999 !important;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                box-shadow: none !important;
+            }
+
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                transform: translateX(0) !important;
+                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3) !important;
+            }
+
+            /* Kill the collapse-control rail sliver */
+            [data-testid="stSidebar"] > div:first-child {
+                width: 100% !important;
+            }
+
+            /* Collapse button — proper FAB */
+            [data-testid="collapsedControl"] {
+                position: fixed !important;
+                top: 0.75rem !important;
+                left: 0.75rem !important;
+                z-index: 10000 !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-height: 44px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 12px !important;
+                border: 1px solid var(--border, #E8E8E8) !important;
+                background: var(--bg-primary, #FFFFFF) !important;
+            }
+
+            /* Main content reclaims full width — NO offset for rail */
+            [data-testid="stAppViewContainer"],
+            .main .block-container,
+            [data-testid="stAppViewContainer"] > section {
+                margin-left: 0 !important;
+                padding-left: 0 !important;
                 max-width: 100% !important;
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
+                width: 100% !important;
+            }
+
+            /* ---------- 2. MAIN CONTENT PADDING ---------- */
+            .main .block-container {
+                padding: 1rem 1rem 4rem 1rem !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
 
             [data-testid="stAppViewContainer"] > .main {
                 padding-top: 1.25rem !important;
             }
 
-            /* Streamlit horizontal blocks → single column */
-            [data-testid="stHorizontalBlock"] {
-                flex-wrap: wrap !important;
-                gap: 0.5rem !important;
-            }
-            [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-                flex: 0 0 100% !important;
-                min-width: 100% !important;
-                width: 100% !important;
-                max-width: 100% !important;
+            [data-testid="stVerticalBlock"] {
+                gap: 0.75rem !important;
             }
 
-            /* Hero / page header */
+            /* ---------- 3. FONT SIZE FLOOR (WCAG 14px minimum) ---------- */
+            .main .block-container [data-testid="stMarkdown"] p,
+            .main .block-container [data-testid="stMarkdown"] span,
+            .main .block-container label,
+            .main .block-container [data-testid="stWidgetLabel"] label,
+            .main .block-container small {
+                font-size: max(0.875rem, inherit) !important;
+                line-height: 1.4 !important;
+            }
+
+            /* Headings — mobile-appropriate sizes */
+            .main h1 { font-size: 1.5rem !important; }
+            .main h2 { font-size: 1.25rem !important; }
+            .main h3 { font-size: 1.125rem !important; }
+
+            /* Section labels that measured 10.88px */
+            .main .block-container [data-testid="stMarkdown"] span,
+            .main .block-container .section-label,
+            .main .block-container [data-testid="stWidgetLabel"] {
+                font-size: max(0.875rem, inherit) !important;
+            }
+
+            /* ---------- 4. TAP TARGETS (44px minimum) ---------- */
+            .main .block-container a,
+            .main .block-container button,
+            .main .block-container [role="button"],
+            .main .block-container select,
+            .main .block-container input,
+            .main .block-container [data-testid="baseButton-secondary"],
+            .main .block-container [data-testid="baseButton-primary"] {
+                min-height: 44px !important;
+                min-width: 44px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                padding: 0.5rem 0.75rem !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Email link (measured 161x18) */
+            .main .block-container a[href^="mailto:"] {
+                min-height: 44px !important;
+                padding: 0.75rem 0 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+            }
+
+            /* Heading anchor links (measured 16x16) */
+            .main .block-container a[href^="#"],
+            .main .block-container .header-anchor {
+                min-height: 44px !important;
+                min-width: 44px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: -12px !important;
+                padding: 12px !important;
+            }
+
+            /* Tab buttons */
+            [data-testid="stTabs"] [role="tablist"] {
+                flex-wrap: wrap !important;
+            }
+            [data-testid="stTabs"] [role="tab"] {
+                flex: 1 1 auto !important;
+                font-size: 0.875rem !important;
+                min-height: 44px !important;
+                padding: 0.5rem 0.75rem !important;
+            }
+
+            /* ---------- 5. COLUMNS → STACK ---------- */
+            [data-testid="stHorizontalBlock"],
+            .stHorizontalBlock {
+                flex-direction: column !important;
+                flex-wrap: nowrap !important;
+                gap: 0.75rem !important;
+            }
+
+            [data-testid="stHorizontalBlock"] > [data-testid="column"],
+            [data-testid="stHorizontalBlock"] > [data-testid="stVerticalBlock"],
+            [data-testid="stHorizontalBlock"] > div,
+            .stHorizontalBlock > div {
+                flex: 0 0 100% !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            /* ---------- 6. HERO / PAGE HEADER ---------- */
             .page-header {
                 flex-direction: column !important;
                 padding: 1rem !important;
                 margin-bottom: 0.75rem !important;
             }
             .page-header h1 {
-                font-size: 1.7rem !important;
+                font-size: 1.5rem !important;
                 line-height: 1.15 !important;
                 hyphens: none !important;
                 word-break: normal !important;
@@ -1920,7 +2055,7 @@ def _inject_mobile_styles() -> None:
                 gap: 0.4rem !important;
             }
             .hero-chip-row span {
-                font-size: 0.68rem !important;
+                font-size: 0.875rem !important;
                 padding: 0.25rem 0.5rem !important;
             }
             .hero-aside {
@@ -1929,7 +2064,7 @@ def _inject_mobile_styles() -> None:
                 margin-top: 0.75rem !important;
             }
 
-            /* Stock header */
+            /* ---------- 7. STOCK HEADER ---------- */
             .stock-title-row {
                 flex-direction: column !important;
                 align-items: flex-start !important;
@@ -1944,7 +2079,7 @@ def _inject_mobile_styles() -> None:
                 font-size: 1.65rem !important;
             }
 
-            /* Sample report preview */
+            /* ---------- 8. SAMPLE REPORT PREVIEW ---------- */
             .sample-report-preview {
                 padding: 1rem !important;
             }
@@ -1966,7 +2101,7 @@ def _inject_mobile_styles() -> None:
                 gap: 0.6rem !important;
             }
 
-            /* Executive verdict strip */
+            /* ---------- 9. EXECUTIVE VERDICT STRIP ---------- */
             .executive-verdict-strip {
                 flex-direction: column !important;
                 padding: 1rem !important;
@@ -1983,12 +2118,10 @@ def _inject_mobile_styles() -> None:
                 padding: 0.55rem !important;
             }
 
-            /* KPI / score cards */
+            /* ---------- 10. KPI / SCORE CARDS ---------- */
             .score-card, [data-testid="stMetric"] {
                 min-height: auto !important;
             }
-
-            /* Section titles */
             .section-title {
                 font-size: 0.95rem !important;
             }
@@ -1996,74 +2129,105 @@ def _inject_mobile_styles() -> None:
                 margin: 1rem 0 0.5rem !important;
             }
 
-            /* Tabs */
-            [data-testid="stTabs"] [role="tablist"] {
-                flex-wrap: wrap !important;
-            }
-            [data-testid="stTabs"] [role="tab"] {
-                flex: 1 1 auto !important;
-                font-size: 0.78rem !important;
-                min-height: 44px !important;
-                padding: 0.5rem 0.6rem !important;
-            }
-
-            /* Buttons / tap targets */
-            button, [role="button"], .stButton button, .stDownloadButton button, .stTextInput input {
-                min-height: 44px !important;
-            }
-
-            /* Sidebar on mobile: keep a 96px rail exposed without covering the first column of content */
-            .block-container {
-                padding-left: calc(96px + 0.75rem) !important;
-            }
-            [data-testid="stSidebar"] {
-                width: min(340px, 88vw) !important;
-                max-width: 88vw !important;
-                transform: translateX(calc(-1 * (min(340px, 88vw) - 96px))) !important;
-            }
-            [data-testid="stSidebar"][aria-expanded="true"] {
-                transform: translateX(0) !important;
-            }
-            [data-testid="stSidebar"] .block-container {
-                padding-left: 0.75rem !important;
-                padding-right: 0.75rem !important;
-            }
-
-            /* Dataframes / tables */
-            [data-testid="stDataFrame"] {
+            /* ---------- 11. DATA TABLES ---------- */
+            [data-testid="stDataFrame"],
+            [data-testid="stTable"],
+            .stDataFrame {
                 overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                max-width: 100% !important;
+                border-radius: 8px !important;
+            }
+            [data-testid="stDataFrame"] td,
+            [data-testid="stDataFrame"] th {
+                white-space: nowrap !important;
+                font-size: 0.8125rem !important;
+                padding: 0.5rem 0.625rem !important;
             }
 
-            /* Footer */
+            /* ---------- 12. CHARTS / PLOTS ---------- */
+            .main .block-container [data-testid="stPlotlyChart"],
+            .main .block-container [data-testid="stVegaLiteChart"],
+            .main .block-container .stPlotlyChart {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                max-width: 100% !important;
+            }
+
+            /* ---------- 13. EXPANDERS ---------- */
+            [data-testid="stExpander"] summary {
+                min-height: 48px !important;
+                padding: 0.75rem 1rem !important;
+                font-size: 0.9375rem !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            /* ---------- 14. FOOTER ---------- */
             .footer {
-                font-size: 0.72rem !important;
+                font-size: 0.8125rem !important;
                 padding: 0.75rem 1rem !important;
             }
 
-            /* Mobile-only menu button */
+            /* ---------- 15. MOBILE MENU BUTTON ---------- */
             .mobile-menu-btn {
+                align-items: center;
+                background: var(--panel, #F5F5F5);
+                border: 1px solid var(--border, #E8E8E8);
+                border-radius: 10px;
+                box-shadow: var(--shadow);
+                color: var(--text, #1A1A1A);
+                cursor: pointer;
                 display: flex !important;
+                height: 2.75rem;
+                justify-content: center;
+                left: 0.6rem;
+                position: fixed;
+                top: 0.6rem;
+                width: 2.75rem;
+                z-index: 999999;
+            }
+            .mobile-menu-btn svg {
+                fill: currentColor;
+                height: 1.25rem;
+                width: 1.25rem;
             }
         }
 
-        /* Extra-tight screens */
+        /* ---------- EXTRA-TIGHT SCREENS (<=380px, iPhone SE) ---------- */
         @media (max-width: 380px) {
-            .page-header h1 {
-                font-size: 1.5rem !important;
+            .main .block-container {
+                padding: 0.75rem 0.75rem 4rem 0.75rem !important;
             }
+
+            [data-testid="stSidebar"] {
+                width: 90vw !important;
+            }
+
+            .main h1 { font-size: 1.375rem !important; }
+            .main h2 { font-size: 1.125rem !important; }
+
             .executive-verdict-metrics {
                 grid-template-columns: 1fr !important;
             }
+
+            /* Stack tab buttons vertically on very small screens */
+            [data-baseweb="tab-list"] {
+                flex-direction: column !important;
+            }
+            [data-baseweb="tab-list"] button {
+                width: 100% !important;
+            }
         }
 
-        /* Mobile menu button (hidden on desktop) */
+        /* Mobile menu button (hidden on desktop, flex on mobile) */
         .mobile-menu-btn {
             align-items: center;
-            background: var(--panel);
-            border: 1px solid var(--border);
+            background: var(--panel, #F5F5F5);
+            border: 1px solid var(--border, #E8E8E8);
             border-radius: 10px;
             box-shadow: var(--shadow);
-            color: var(--text);
+            color: var(--text, #1A1A1A);
             cursor: pointer;
             display: none;
             height: 2.75rem;
