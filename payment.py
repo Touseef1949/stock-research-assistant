@@ -86,7 +86,18 @@ def _normalize_email(email: str) -> str:
 
 
 def save_auth(email: str) -> None:
-    """Persist verified email to disk so auth survives page reloads."""
+    """Persist verified email to disk so auth survives page reloads.
+
+    **Production (Supabase configured):** This is intentionally a no-op.
+    On shared filesystems like HF Spaces, writing to a single file would
+    leak one user's email to every subsequent visitor.  Auth state lives
+    exclusively in ``st.session_state`` in production.
+
+    **Local dev (Supabase offline):** Writes to AUTH_FILE so a single
+    developer doesn't have to re-enter their email after every page reload.
+    """
+    if not _supabase_offline():
+        return  # Production: session_state is the only auth scope
     clean_email = _normalize_email(email)
     if not clean_email:
         return
@@ -101,7 +112,17 @@ def save_auth(email: str) -> None:
 
 
 def load_auth() -> str | None:
-    """Load persisted email if auth file exists and is less than 7 days old."""
+    """Load persisted email if auth file exists and is less than 7 days old.
+
+    **Production (Supabase configured):** Always returns ``None``.
+    Reading a shared file would auto-authenticate the current visitor as
+    whichever user last wrote to it — a critical session-bleed bug on
+    multi-user environments like HF Spaces.
+
+    **Local dev (Supabase offline):** Reads AUTH_FILE normally.
+    """
+    if not _supabase_offline():
+        return None  # Production: never read shared file
     try:
         if not AUTH_FILE.is_file():
             return None
@@ -125,7 +146,13 @@ def load_auth() -> str | None:
 
 
 def clear_auth() -> None:
-    """Delete persisted auth on sign out."""
+    """Delete persisted auth on sign out.
+
+    **Production:** No-op (file was never written).
+    **Local dev:** Removes AUTH_FILE.
+    """
+    if not _supabase_offline():
+        return  # Production: no file to clear
     try:
         AUTH_FILE.unlink(missing_ok=True)
     except Exception:

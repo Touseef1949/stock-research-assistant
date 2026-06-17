@@ -217,9 +217,14 @@ def test_mock_user_attributes_are_accessible():
 # ── Auth file I/O (tmp_path) ──
 @pytest.fixture
 def auth_tmp_path(tmp_path, monkeypatch):
-    """Redirect AUTH_FILE to tmp_path for isolated tests."""
+    """Redirect AUTH_FILE to tmp_path for isolated tests.
+
+    Also mocks _supabase_offline() → True so that save_auth / load_auth /
+    clear_auth actually perform file I/O (they are no-ops in production).
+    """
     test_file = tmp_path / "sra_auth.json"
     monkeypatch.setattr(payment, "AUTH_FILE", test_file)
+    monkeypatch.setattr(payment, "_supabase_offline", lambda: True)
     yield test_file
     # Cleanup
     test_file.unlink(missing_ok=True)
@@ -272,6 +277,43 @@ def test_save_auth_empty_email(auth_tmp_path):
     """Empty email should not create an auth file."""
     save_auth("")
     assert not auth_tmp_path.exists()
+
+
+# ── Session bleed prevention: production (Supabase online) no-ops ──
+@pytest.fixture
+def auth_production_path(tmp_path, monkeypatch):
+    """Simulate production: _supabase_offline() → False."""
+    test_file = tmp_path / "sra_auth.json"
+    monkeypatch.setattr(payment, "AUTH_FILE", test_file)
+    monkeypatch.setattr(payment, "_supabase_offline", lambda: False)
+    yield test_file
+    test_file.unlink(missing_ok=True)
+
+
+def test_save_auth_noop_in_production(auth_production_path):
+    """save_auth must not write to disk when Supabase is configured."""
+    save_auth("victim@example.com")
+    assert not auth_production_path.exists()
+
+
+def test_load_auth_noop_in_production(auth_production_path):
+    """load_auth must return None in production even if a file exists."""
+    # Manually write a file to simulate leftover from before the fix
+    auth_production_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_production_path.write_text(
+        json.dumps({"email": "leaked@example.com", "verified_at": datetime.now(timezone.utc).isoformat()}),
+        encoding="utf-8",
+    )
+    assert load_auth() is None
+
+
+def test_clear_auth_noop_in_production(auth_production_path):
+    """clear_auth must not touch disk when Supabase is configured."""
+    auth_production_path.parent.mkdir(parents=True, exist_ok=True)
+    auth_production_path.write_text("leftover", encoding="utf-8")
+    clear_auth()
+    # File should still exist — clear_auth is a no-op in production
+    assert auth_production_path.exists()
 
 
 # ── _valid_supabase_config (with env mocking) ──
