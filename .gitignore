@@ -8,3 +8,5 @@ reports/
 outputs/
 *.bak
 .DS_Store
+.codegraph/
+.coverage
