@@ -1892,8 +1892,9 @@ def _inject_mobile_styles() -> None:
                 left: 0 !important;
                 bottom: 0 !important;
                 height: 100dvh !important;
-                width: min(320px, 85vw) !important;
-                max-width: 85vw !important;
+                width: 85vw !important;
+                max-width: 320px !important;
+                min-width: 280px !important;
                 z-index: 9999 !important;
                 transform: translateX(-100%) !important;
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
