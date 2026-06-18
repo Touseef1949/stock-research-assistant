@@ -89,9 +89,9 @@ When the repo is connected to GitHub:
 - [x] Mobile-responsive UI
 - [x] Institutional PDF reports
 - [x] Payment/auth layer (Razorpay + Supabase)
-- [ ] Live price source (Kite) — currently yfinance
-- [ ] Load testing — unknown concurrent user capacity
-- [ ] GitHub remote — repo not yet pushed to GitHub
+- [ ] Live price source (Kite) — currently yfinance (deferred)
+- [x] Load testing — 10 concurrent users, 0 failures, median 230ms
+- [x] GitHub remote — https://github.com/Touseef1949/stock-research-assistant
 
 ## Troubleshooting
 
