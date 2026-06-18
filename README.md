@@ -1,3 +1,14 @@
+---
+title: Stock Research Assistant
+emoji: 📊
+colorFrom: green
+colorTo: blue
+sdk: docker
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Stock Research Assistant — Production Runbook
 
 > **Status**: Production-grade | Live at https://tshaik1990-stock-research-assistant.hf.space
