@@ -138,9 +138,9 @@ def test_load_market_data_with_mock_yfinance(monkeypatch):
 
     monkeypatch.setattr("yf_client.ticker_info", mock_ticker_info)
     monkeypatch.setattr("yf_client.ticker_history", mock_ticker_history)
-    # Also patch app's module-level reference
-    monkeypatch.setattr("app.ticker_info", mock_ticker_info)
-    monkeypatch.setattr("app.ticker_history", mock_ticker_history)
+    # Also patch service module's reference
+    monkeypatch.setattr("services.market_data.ticker_info", mock_ticker_info)
+    monkeypatch.setattr("services.market_data.ticker_history", mock_ticker_history)
 
     data = load_market_data("SBIN.NS")
 
@@ -164,10 +164,10 @@ def test_load_market_data_rate_limit_fallback(monkeypatch):
         raise YFinanceRateLimitError("rate limited")
 
     monkeypatch.setattr("yf_client.ticker_info", mock_rate_limit)
-    monkeypatch.setattr("app.ticker_info", mock_rate_limit)
+    monkeypatch.setattr("services.market_data.ticker_info", mock_rate_limit)
     # Mock _market_data_from_screener to return test data
     monkeypatch.setattr(
-        "app._market_data_from_screener",
+        "services.market_data._market_data_from_screener",
         lambda sym: {
             "symbol": sym,
             "base_symbol": "SBIN",
@@ -203,12 +203,12 @@ def test_load_market_data_rate_limit_screener_fail_web_fallback(monkeypatch):
         raise YFinanceRateLimitError("rate limited")
 
     monkeypatch.setattr("yf_client.ticker_info", mock_rate_limit)
-    monkeypatch.setattr("app.ticker_info", mock_rate_limit)
+    monkeypatch.setattr("services.market_data.ticker_info", mock_rate_limit)
     monkeypatch.setattr(
-        "app.fetch_screener_financials",
+        "services.market_data.fetch_screener_financials",
         lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
     )
-    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: 812.35)
+    monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda sym: 812.35)
 
     data = load_market_data("SBIN.NS")
 
@@ -225,10 +225,10 @@ def test_market_data_from_screener_falls_through_to_web(monkeypatch):
     from app import _market_data_from_screener
 
     monkeypatch.setattr(
-        "app.fetch_screener_financials",
+        "services.market_data.fetch_screener_financials",
         lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
     )
-    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: 901.25)
+    monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda sym: 901.25)
 
     data = _market_data_from_screener("RELIANCE.NS")
 
@@ -243,10 +243,10 @@ def test_all_sources_failed_error_is_not_classified_as_yahoo_rate_limit(monkeypa
     from yf_client import is_rate_limit_error
 
     monkeypatch.setattr(
-        "app.fetch_screener_financials",
+        "services.market_data.fetch_screener_financials",
         lambda sym: {"success": False, "source": "screener", "data": None, "warnings": ["HTTP 403"]},
     )
-    monkeypatch.setattr("app._current_price_from_web_sources", lambda sym: None)
+    monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda sym: None)
 
     with pytest.raises(RuntimeError) as excinfo:
         _market_data_from_screener("SBIN.NS")
@@ -267,7 +267,7 @@ def test_google_finance_parser_handles_current_markup(monkeypatch):
         '<div class="LhDNu"><div><span jsname="Pdsbrc" class="">'
         '<span>₹1,328.60</span></span></div></div>'
     )
-    monkeypatch.setattr("app._web_get_text", lambda url: html)
+    monkeypatch.setattr("services.market_data._web_get_text", lambda url: html)
 
     assert _price_from_google_finance("RELIANCE") == 1328.60
 
@@ -277,7 +277,7 @@ def test_google_finance_parser_ignores_unscoped_rupee_values(monkeypatch):
     from app import _price_from_google_finance
 
     html = '<div>Sensex ₹26,891.55</div><div>Target price ₹500</div>'
-    monkeypatch.setattr("app._web_get_text", lambda url: html)
+    monkeypatch.setattr("services.market_data._web_get_text", lambda url: html)
 
     assert _price_from_google_finance("TCS") is None
 
@@ -286,13 +286,13 @@ def test_web_sources_do_not_use_ddgs_snippets(monkeypatch):
     """DDGS snippets are too noisy for prices and must not be in the automatic chain."""
     from app import _current_price_from_web_sources
 
-    monkeypatch.setattr("app._price_from_google_finance", lambda sym: None)
-    monkeypatch.setattr("app._price_from_nse_quote_api", lambda sym: None)
+    monkeypatch.setattr("services.market_data._price_from_google_finance", lambda sym: None)
+    monkeypatch.setattr("services.market_data._price_from_nse_quote_api", lambda sym: None)
 
     def bad_ddgs(sym):
         raise AssertionError("DDGS snippet parser should not be used for automatic price fallback")
 
-    monkeypatch.setattr("app._price_from_ddgs_snippets", bad_ddgs)
+    monkeypatch.setattr("services.market_data._price_from_ddgs_snippets", bad_ddgs)
 
     assert _current_price_from_web_sources("SBIN") is None
 
@@ -722,7 +722,7 @@ def test_build_enhanced_pdf_empty_sections():
 
 def test_run_agent_pipeline_without_api_key():
     """When no API key, falls back to local pipeline."""
-    from app import run_agent_pipeline, AgentResult
+    from services.analysis_pipeline import run_agent_pipeline, AgentResult
 
     data = {
         "symbol": "SBIN.NS",
@@ -750,7 +750,7 @@ def test_run_agent_pipeline_without_api_key():
 
 def test_run_agent_pipeline_with_mock_agents(monkeypatch):
     """Verify agent pipeline orchestration with mocked DeepSeek agents."""
-    from app import run_agent_pipeline, AgentResult
+    from services.analysis_pipeline import run_agent_pipeline, AgentResult
 
     # Mock Agent class
     mock_agent_instance = MagicMock()
@@ -759,9 +759,9 @@ def test_run_agent_pipeline_with_mock_agents(monkeypatch):
     )
 
     mock_agent_cls = MagicMock(return_value=mock_agent_instance)
-    monkeypatch.setattr("app.Agent", mock_agent_cls)
-    monkeypatch.setattr("app.DeepSeek", MagicMock())
-    monkeypatch.setattr("app.DuckDuckGoTools", MagicMock())
+    monkeypatch.setattr("services.analysis_pipeline.Agent", mock_agent_cls)
+    monkeypatch.setattr("services.analysis_pipeline.DeepSeek", MagicMock())
+    monkeypatch.setattr("services.analysis_pipeline.DuckDuckGoTools", MagicMock())
 
     data = {
         "symbol": "SBIN.NS",

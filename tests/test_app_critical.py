@@ -127,7 +127,7 @@ def test_agent_result_creation():
 # ═══════════════════════════════════════════════════════════════
 
 def test_format_agent_outputs():
-    from app import format_agent_outputs
+    from services.analysis_pipeline import format_agent_outputs
 
     outputs = {
         "Fundamentals": AgentResult(name="F", content="Good fundamentals", score=7.5, source="agent"),
@@ -142,7 +142,7 @@ def test_format_agent_outputs():
 
 
 def test_format_agent_outputs_missing_dimension():
-    from app import format_agent_outputs
+    from services.analysis_pipeline import format_agent_outputs
 
     outputs = {"Fundamentals": AgentResult(name="F", content="OK", score=7.0, source="agent")}
     result = format_agent_outputs(outputs)
@@ -155,7 +155,7 @@ def test_format_agent_outputs_missing_dimension():
 # ═══════════════════════════════════════════════════════════════
 
 def test_build_local_summary():
-    from app import build_local_summary
+    from services.analysis_pipeline import build_local_summary
 
     data = make_mock_data()
     outputs = {
@@ -173,44 +173,44 @@ def test_build_local_summary():
 # ═══════════════════════════════════════════════════════════════
 
 def test_get_agent_output_from_agentresult():
-    from app import get_agent_output
+    from services.analysis_pipeline import get_agent_output, AgentResult as CurrentAgentResult
 
     data = make_mock_data()
-    ar = AgentResult(name="Fundamentals", content="test", score=7.5, source="agent")
+    ar = CurrentAgentResult(name="Fundamentals", content="test", score=7.5, source="agent")
     result = {"agent_outputs": {"Fundamentals": ar}}
     output = get_agent_output(result, data, "Fundamentals")
-    assert isinstance(output, AgentResult)
+    assert output.__class__.__name__ == "AgentResult"
     assert output.score == 7.5
 
 
 def test_get_agent_output_from_dict():
-    from app import get_agent_output
+    from services.analysis_pipeline import get_agent_output
 
     data = make_mock_data()
     result = {"agent_outputs": {"Fundamentals": {"content": "test", "score": 6.5, "source": "agent"}}}
     output = get_agent_output(result, data, "Fundamentals")
-    assert isinstance(output, AgentResult)
+    assert output.__class__.__name__ == "AgentResult"
     assert output.score == 6.5
 
 
 def test_get_agent_output_from_dict_missing_score():
     """When score is missing from dict, falls back to local_scores."""
-    from app import get_agent_output
+    from services.analysis_pipeline import get_agent_output
 
     data = make_mock_data()
     result = {"agent_outputs": {"Fundamentals": {"content": "test", "source": "agent"}}}
     output = get_agent_output(result, data, "Fundamentals")
-    assert isinstance(output, AgentResult)
+    assert output.__class__.__name__ == "AgentResult"
     assert 1.0 <= output.score <= 10.0
 
 
 def test_get_agent_output_missing_returns_fallback():
-    from app import get_agent_output
+    from services.analysis_pipeline import get_agent_output
 
     data = make_mock_data()
     result = {"agent_outputs": {}}
     output = get_agent_output(result, data, "Fundamentals")
-    assert isinstance(output, AgentResult)
+    assert output.__class__.__name__ == "AgentResult"
     assert output.source == "local"
     assert "Local fallback" in output.content
 
@@ -220,7 +220,7 @@ def test_get_agent_output_missing_returns_fallback():
 # ═══════════════════════════════════════════════════════════════
 
 def test_run_local_pipeline():
-    from app import run_local_pipeline
+    from services.analysis_pipeline import run_local_pipeline
 
     data = make_mock_data()
     result = run_local_pipeline(data, "DEEPSEEK_API_KEY missing")
@@ -233,7 +233,7 @@ def test_run_local_pipeline():
 
 
 def test_run_local_pipeline_all_scores_valid():
-    from app import run_local_pipeline
+    from services.analysis_pipeline import run_local_pipeline
 
     data = make_mock_data()
     result = run_local_pipeline(data, "test")

@@ -7,7 +7,6 @@ import http.cookiejar
 import urllib.parse
 import urllib.request
 from html import escape
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
@@ -40,22 +39,19 @@ from yf_client import (
     ticker_info,
 )
 
-try:
-    import yfinance as yf
-except Exception:
-    yf = None
-
-try:
-    from agno.agent import Agent
-    from agno.models.deepseek import DeepSeek
-    from agno.tools.duckduckgo import DuckDuckGoTools
-    from agno.tools.yfinance import YFinanceTools
-except Exception:
-    Agent = None
-    DeepSeek = None
-    DuckDuckGoTools = None
-    YFinanceTools = None
-
+from core.models import AgentResult, SCORE_ORDER
+from services.analysis_pipeline import (
+    fallback_result,
+    build_context,
+    run_agent,
+    agent_or_fallback,
+    run_agent_pipeline,
+    run_local_pipeline,
+    format_agent_outputs,
+    build_local_summary,
+    get_agent_output,
+    run_analysis,
+)
 from payment import (
     _auth_user_id,
     _ensure_user_row,
@@ -87,6 +83,51 @@ from ui import (
 from deep_research import run_deep_research
 from deep_research.report import build_enhanced_pdf
 from deep_research.screener_client import fetch_screener_financials
+from services import report_history as report_history_service
+from services.market_data import (
+    load_market_data,
+    _market_data_source_badge,
+    _safe_ratio_name,
+    _synthetic_history,
+    _market_data_from_screener,
+    _price_from_google_finance,
+    _price_from_nse_quote_api,
+    _price_from_ddgs_snippets,
+    _current_price_from_web_sources,
+    _current_price_from_web_search,
+)
+
+
+def inline_markdown_to_html(text: str) -> str:
+    """Convert inline **bold** markdown to HTML, escaping other markup."""
+    escaped = escape(str(text or ""))
+    return re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", escaped)
+
+
+def simple_markdown_to_html(text: str) -> str:
+    """Convert simple markdown (paragraphs and bullet lists) to basic HTML."""
+    lines = [line.rstrip() for line in str(text or "").splitlines()]
+    html_lines: list[str] = []
+    in_list = False
+    for line in lines:
+        if not line:
+            if in_list:
+                html_lines.append("</ul>")
+                in_list = False
+            continue
+        if line.startswith("- "):
+            if not in_list:
+                html_lines.append("<ul>")
+                in_list = True
+            html_lines.append(f"<li>{inline_markdown_to_html(line[2:])}</li>")
+        else:
+            if in_list:
+                html_lines.append("</ul>")
+                in_list = False
+            html_lines.append(f"<p>{inline_markdown_to_html(line)}</p>")
+    if in_list:
+        html_lines.append("</ul>")
+    return "\n".join(html_lines)
 
 
 APP_TITLE = "Stock Research Assistant"
@@ -95,7 +136,6 @@ QUICK_PICKS = {
     "RELIANCE": "Reliance Industries",
     "TCS": "Tata Consultancy Services",
 }
-SCORE_ORDER = ["Fundamentals", "Technicals", "Sentiment", "Risk"]
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 MAX_REPORT_FILES = 50
 HISTORY_DISPLAY_LIMIT = 8
@@ -108,14 +148,6 @@ ROTATING_WIT = [
     "Building your edge — data beats gut feel, every single time.",
     "Deep work in progress. Every second here saves you hours of guesswork.",
 ]
-
-
-@dataclass
-class AgentResult:
-    name: str
-    content: str
-    score: float
-    source: str = "agent"
 
 
 st.set_page_config(page_title=APP_TITLE, page_icon="📊", layout="wide")
@@ -2392,997 +2424,6 @@ def get_deepseek_key() -> str:
         return os.getenv("DEEPSEEK_API_KEY", "").strip()
     return os.getenv("DEEPSEEK_API_KEY", "").strip()
 
-
-def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
-    """Build a market_data dict from Screener.in when yfinance is rate-limited."""
-    base = display_symbol(nse_symbol)
-    screener = fetch_screener_financials(nse_symbol)
-    if not screener.get("success"):
-        return _market_data_from_web_search(
-            nse_symbol,
-            reason="; ".join(screener.get("warnings", [])),
-        )
-
-    d = screener.get("data", {})
-    ratios = d.get("ratios", {})
-    price = safe_float(ratios.get("current_price")) or 0.0
-    if not price:
-        # Last resort: try a simple web search extraction for current price
-        price = _current_price_from_web_sources(base)
-
-    name = base
-    if not price:
-        raise RuntimeError(
-            f"Could not determine current price for {nse_symbol} from Screener or web search."
-        )
-
-    market_cap_cr = safe_float(ratios.get("market_cap"))
-    market_cap = market_cap_cr * 10_000_000 if market_cap_cr else None
-    stock_pe = safe_float(ratios.get("stock_pe"))
-    book_value = safe_float(ratios.get("book_value"))
-    price_to_book = (price / book_value) if book_value else None
-    roe_pct = safe_float(ratios.get("roe_pct"))
-    roce_pct = safe_float(ratios.get("roce_pct"))
-    debt_to_equity = safe_float(ratios.get("debt_to_equity"))
-    dividend_yield = safe_float(ratios.get("dividend_yield"))
-    if dividend_yield is not None and dividend_yield > 1:
-        dividend_yield = dividend_yield / 100
-
-    growth = d.get("growth", {})
-    revenue_growth = safe_float(growth.get("sales_growth_3yr_pct"))
-    if revenue_growth is not None:
-        revenue_growth = revenue_growth / 100
-
-    fundamentals = {
-        "market_cap": market_cap,
-        "trailing_pe": stock_pe,
-        "forward_pe": None,
-        "price_to_book": price_to_book,
-        "roe": roe_pct / 100 if roe_pct is not None else None,
-        "debt_to_equity": debt_to_equity,
-        "revenue_growth": revenue_growth,
-        "dividend_yield": dividend_yield,
-        "profit_margins": None,
-        "beta": None,
-    }
-    return _build_minimal_market_data(
-        nse_symbol=nse_symbol,
-        price=price,
-        source="screener_fallback",
-        name=name,
-        fundamentals=fundamentals,
-        screener_data=screener,
-    )
-
-
-def _safe_ratio_name(name: str) -> str:
-    """Return a display name for the data source."""
-    return str(name or "Unknown")
-
-
-def _market_data_source_badge(data: dict[str, Any]) -> str:
-    if data.get("source") == "screener_fallback":
-        return "📡 Live market data from Screener.in (Yahoo Finance was temporarily unavailable)"
-    if data.get("source") == "web_search_fallback":
-        return "🌐 Price from public web fallback (Yahoo Finance and Screener.in were unavailable)"
-    return "📈 Market data from Yahoo Finance"
-
-
-def _synthetic_history(price: float) -> Any:
-    """Create a minimal single-row history DataFrame as a safe placeholder."""
-    try:
-        import pandas as pd
-    except Exception:
-        return None
-    today = pd.Timestamp.now().normalize()
-    df = pd.DataFrame(
-        {
-            "Open": [price],
-            "High": [price],
-            "Low": [price],
-            "Close": [price],
-            "Volume": [0],
-            "Adj Close": [price],
-        },
-        index=pd.DatetimeIndex([today], name="Date"),
-    )
-    df["EMA20"] = price
-    df["EMA50"] = price
-    df["RSI14"] = 50.0
-    df["MACD"] = 0.0
-    df["MACDSignal"] = 0.0
-    return df
-
-
-def _build_minimal_market_data(
-    nse_symbol: str,
-    price: float,
-    source: str,
-    name: str | None = None,
-    fundamentals: dict[str, Any] | None = None,
-    screener_data: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build safe market_data when only a current price is available."""
-    base = display_symbol(nse_symbol)
-    hist = _synthetic_history(price)
-    fundamentals = fundamentals or {
-        "market_cap": None,
-        "trailing_pe": None,
-        "forward_pe": None,
-        "price_to_book": None,
-        "roe": None,
-        "debt_to_equity": None,
-        "revenue_growth": None,
-        "dividend_yield": None,
-        "profit_margins": None,
-        "beta": None,
-    }
-    technicals = {
-        "trend": "Neutral",
-        "rsi": 50.0,
-        "macd": 0.0,
-        "macd_signal": 0.0,
-        "ema20": price,
-        "ema50": price,
-        "support": price * 0.95,
-        "resistance": price * 1.05,
-        "avg_volume_20d": 0.0,
-        "latest_volume": 0.0,
-        "max_drawdown_pct": -5.0,
-        "return_1y_pct": 0.0,
-        "volatility_60d_pct": 15.0,
-    }
-    data = {
-        "symbol": nse_symbol,
-        "base_symbol": base,
-        "name": name or base,
-        "exchange": "NSE",
-        "currency": "INR",
-        "price": price,
-        "change": 0.0,
-        "change_pct": 0.0,
-        "history": hist,
-        "info": {},
-        "fundamentals": fundamentals,
-        "technicals": technicals,
-        "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
-        "source": source,
-    }
-    if screener_data is not None:
-        data["screener_data"] = screener_data
-    return data
-
-
-def _market_data_from_web_search(nse_symbol: str, reason: str = "") -> dict[str, Any]:
-    """Build minimal market data from public web-derived current price sources."""
-    price = _current_price_from_web_sources(display_symbol(nse_symbol))
-    if price:
-        return _build_minimal_market_data(
-            nse_symbol=nse_symbol,
-            price=price,
-            source="web_search_fallback",
-            name=display_symbol(nse_symbol),
-        )
-
-    details = f" Details: {reason}" if reason else ""
-    raise RuntimeError(
-        "Yahoo Finance, Screener.in, and web fallback are unreachable for "
-        f"{nse_symbol}.{details}"
-    )
-
-
-def _web_get_text(url: str, headers: dict[str, str] | None = None, opener: Any = None) -> str:
-    request = urllib.request.Request(
-        url,
-        headers=headers
-        or {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-        },
-    )
-    open_fn = opener.open if opener is not None else urllib.request.urlopen
-    with open_fn(request, timeout=8) as response:
-        return response.read().decode("utf-8", errors="ignore")
-
-
-def _price_from_google_finance(symbol: str) -> float | None:
-    url = f"https://www.google.com/finance/quote/{urllib.parse.quote(symbol)}:NSE"
-    try:
-        html = _web_get_text(url)
-    except Exception:
-        return None
-
-    # Scope extraction to Google Finance's main quote header. Avoid generic
-    # rupee/number matches because related-stock cards and index widgets on the
-    # same page can contain unrelated prices.
-    main_quote_pattern = (
-        r'<div class="gO24Ff">[^<]+</div>\s*</div>\s*'
-        r'<div class="LhDNu">.*?jsname="Pdsbrc"[^>]*>\s*'
-        r'<span>\s*(?:₹|Rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)\s*</span>'
-    )
-    match = re.search(main_quote_pattern, html, flags=re.S)
-    if not match:
-        return None
-
-    price = safe_float(match.group(1).replace(",", ""))
-    if price and 10 < price < 50000:
-        return price
-    return None
-
-
-def _price_from_nse_quote_api(symbol: str) -> float | None:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        "Accept": "application/json,text/plain,*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.nseindia.com/get-quotes/equity",
-    }
-    cookie_jar = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
-    try:
-        _web_get_text("https://www.nseindia.com", headers=headers, opener=opener)
-        url = "https://www.nseindia.com/api/quote-equity?symbol=" + urllib.parse.quote(symbol)
-        payload = json.loads(_web_get_text(url, headers=headers, opener=opener))
-    except Exception:
-        return None
-
-    price_info = payload.get("priceInfo", {}) if isinstance(payload, dict) else {}
-    for key in ("lastPrice", "close", "previousClose"):
-        price = safe_float(price_info.get(key))
-        if price and 10 < price < 50000:
-            return price
-    return None
-
-
-def _price_from_ddgs_snippets(symbol: str) -> float | None:
-    """Try to extract a current price from web search snippets."""
-    try:
-        from ddgs import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(f"{symbol} NSE share price today", max_results=5))
-        for result in results:
-            body = str(result.get("body", ""))
-            # Match patterns like 'Rs 1,021', '₹1,021', '1021.35'
-            for match in re.finditer(r"(?:Rs\.?|₹)?\s*([0-9,]+(?:\.[0-9]+)?)", body):
-                value = match.group(1).replace(",", "")
-                try:
-                    num = float(value)
-                    if 10 < num < 50000:
-                        return num
-                except ValueError:
-                    continue
-    except Exception:
-        pass
-    return None
-
-
-def _current_price_from_web_sources(symbol: str) -> float | None:
-    """Try structured public web sources for a current price.
-
-    We intentionally do NOT parse generic search snippets for price because
-    snippets frequently contain unrelated values (percent changes, rankings,
-    target prices) that look like valid prices.
-    """
-    base = display_symbol(symbol)
-    for source in (
-        _price_from_google_finance,
-        _price_from_nse_quote_api,
-    ):
-        price = source(base)
-        if price:
-            return price
-    return None
-
-
-def _current_price_from_web_search(symbol: str) -> float | None:
-    """Backward-compatible wrapper for the older helper name."""
-    return _current_price_from_web_sources(symbol)
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def load_market_data(nse_symbol: str) -> dict[str, Any]:
-    if yf is None:
-        # yfinance not installed — try Screener/web fallback directly.
-        return _market_data_from_screener(nse_symbol)
-
-    try:
-        info = ticker_info(nse_symbol)
-        hist = ticker_history(nse_symbol, period="1y", interval="1d", auto_adjust=False)
-        if hist is None or hist.empty:
-            raise RuntimeError(f"No market data found for {nse_symbol}.")
-    except YFinanceRateLimitError:
-        return _market_data_from_screener(nse_symbol)
-
-    hist = hist.dropna(subset=["Close"]).copy()
-    close = hist["Close"]
-    last_price = float(close.iloc[-1])
-    prev_close = float(close.iloc[-2]) if len(close) > 1 else last_price
-    change = last_price - prev_close
-    change_pct = (change / prev_close * 100) if prev_close else 0.0
-
-    hist["EMA20"] = close.ewm(span=20, adjust=False).mean()
-    hist["EMA50"] = close.ewm(span=50, adjust=False).mean()
-    hist["RSI14"] = compute_rsi(close)
-    hist["MACD"], hist["MACDSignal"] = compute_macd(close)
-
-    latest = hist.iloc[-1]
-    max_drawdown_pct = float(((close / close.cummax()) - 1).min() * 100)
-
-    fundamentals = {
-        "market_cap": info.get("marketCap"),
-        "trailing_pe": info.get("trailingPE"),
-        "forward_pe": info.get("forwardPE"),
-        "price_to_book": info.get("priceToBook"),
-        "roe": info.get("returnOnEquity"),
-        "debt_to_equity": info.get("debtToEquity"),
-        "revenue_growth": info.get("revenueGrowth"),
-        "dividend_yield": info.get("dividendYield"),
-        "profit_margins": info.get("profitMargins"),
-        "beta": info.get("beta"),
-    }
-    technicals = {
-        "trend": "Bullish"
-        if latest["EMA20"] > latest["EMA50"]
-        else "Bearish"
-        if latest["EMA20"] < latest["EMA50"]
-        else "Neutral",
-        "rsi": safe_float(latest["RSI14"]),
-        "macd": safe_float(latest["MACD"]),
-        "macd_signal": safe_float(latest["MACDSignal"]),
-        "ema20": safe_float(latest["EMA20"]),
-        "ema50": safe_float(latest["EMA50"]),
-        "support": float(close.tail(60).min()),
-        "resistance": float(close.tail(60).max()),
-        "avg_volume_20d": float(hist["Volume"].tail(20).mean()),
-        "latest_volume": float(latest["Volume"]),
-        "max_drawdown_pct": max_drawdown_pct,
-        "return_1y_pct": (last_price / float(close.iloc[0]) - 1) * 100,
-        "volatility_60d_pct": float(close.pct_change().tail(60).std() * (252**0.5) * 100),
-    }
-
-    return {
-        "symbol": nse_symbol,
-        "base_symbol": display_symbol(nse_symbol),
-        "name": info.get("longName") or info.get("shortName") or nse_symbol,
-        "exchange": info.get("exchange", "NSE"),
-        "currency": info.get("currency", "INR"),
-        "price": last_price,
-        "change": change,
-        "change_pct": change_pct,
-        "history": hist,
-        "info": info,
-        "fundamentals": fundamentals,
-        "technicals": technicals,
-        "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
-        "source": "yfinance",
-    }
-
-
-def fallback_result(name: str, data: dict[str, Any], reason: str) -> AgentResult:
-    score = local_scores(data["fundamentals"], data["technicals"])[name]
-    f = data["fundamentals"]
-    t = data["technicals"]
-    details = {
-        "Fundamentals": [
-            f"Valuation: trailing P/E {number(f.get('trailing_pe'))}, price/book {number(f.get('price_to_book'))}.",
-            f"Quality: ROE {pct(f.get('roe'))}, profit margin {pct(f.get('profit_margins'))}.",
-            f"Balance sheet: debt/equity {number(f.get('debt_to_equity'))}.",
-        ],
-        "Technicals": [
-            f"Trend is {t.get('trend')} with EMA20 at {number(t.get('ema20'))} and EMA50 at {number(t.get('ema50'))}.",
-            f"RSI14 is {number(t.get('rsi'))}; MACD is {number(t.get('macd'))} versus signal {number(t.get('macd_signal'))}.",
-            f"60-day support/resistance: ₹{t.get('support'):.2f} / ₹{t.get('resistance'):.2f}.",
-        ],
-        "Sentiment": [
-            "News sentiment was not available in local mode.",
-            f"Momentum proxy: 1Y return {number(t.get('return_1y_pct'), '%')}.",
-            "Treat this as a neutral sentiment estimate until agent/news analysis is available.",
-        ],
-        "Risk": [
-            f"Max 1Y drawdown is {number(t.get('max_drawdown_pct'), '%')}.",
-            f"Annualized 60D volatility is {number(t.get('volatility_60d_pct'), '%')}.",
-            f"Balance sheet risk proxy: debt/equity {number(f.get('debt_to_equity'))}.",
-        ],
-    }
-    body = "\n".join(f"- {line}" for line in details[name])
-    return AgentResult(
-        name=name,
-        score=score,
-        source="local",
-        content=f"SCORE: {score:.1f}/10\n{body}\n\nLocal fallback used: {reason}",
-    )
-
-
-def build_context(data: dict[str, Any]) -> str:
-    f = data["fundamentals"]
-    t = data["technicals"]
-    return f"""
-Symbol: {data['symbol']}
-Company: {data['name']}
-Price: ₹{data['price']:.2f}, day change {data['change']:+.2f} ({data['change_pct']:+.2f}%)
-Market cap: {money(f.get('market_cap'))}
-Trailing P/E: {number(f.get('trailing_pe'))}
-Forward P/E: {number(f.get('forward_pe'))}
-Price/book: {number(f.get('price_to_book'))}
-ROE: {pct(f.get('roe'))}
-Revenue growth: {pct(f.get('revenue_growth'))}
-Profit margin: {pct(f.get('profit_margins'))}
-Debt/equity: {number(f.get('debt_to_equity'))}
-Dividend yield: {pct(f.get('dividend_yield'))}
-Trend: {t.get('trend')}
-RSI14: {number(t.get('rsi'))}
-MACD: {number(t.get('macd'))}, signal: {number(t.get('macd_signal'))}
-EMA20: {number(t.get('ema20'))}, EMA50: {number(t.get('ema50'))}
-Support: ₹{t.get('support'):.2f}, resistance: ₹{t.get('resistance'):.2f}
-1Y return: {number(t.get('return_1y_pct'), '%')}
-Max drawdown: {number(t.get('max_drawdown_pct'), '%')}
-60D annualized volatility: {number(t.get('volatility_60d_pct'), '%')}
-""".strip()
-
-
-def run_agent(agent: Any, prompt: str, dependencies: dict[str, Any]) -> str:
-    response = agent.run(prompt, dependencies=dependencies)
-    content = getattr(response, "content", response)
-    return str(content or "").strip()
-
-
-def agent_or_fallback(
-    name: str,
-    agent: Any,
-    prompt: str,
-    data: dict[str, Any],
-    dependencies: dict[str, Any],
-) -> AgentResult:
-    try:
-        content = run_agent(agent, prompt, dependencies)
-        score = parse_score(content)
-        if score is None:
-            local = local_scores(data["fundamentals"], data["technicals"])[name]
-            content = f"SCORE: {local:.1f}/10\n{content}\n\nScore parser fallback applied."
-            score = local
-        return AgentResult(name=name, content=content, score=score, source="agent")
-    except Exception as exc:
-        return fallback_result(name, data, f"{name} agent failed: {exc}")
-
-
-def run_agent_pipeline(
-    api_key: str,
-    nse_symbol: str,
-    data: dict[str, Any],
-    progress_callback: Callable[[int, str | None], None] | None = None,
-) -> dict[str, Any]:
-    if Agent is None or DeepSeek is None:
-        if progress_callback:
-            progress_callback(70, "Assessing risk...")
-            progress_callback(80, "Generating report...")
-            progress_callback(95, None)
-        return run_local_pipeline(data, "Agno is not installed or could not be imported.")
-
-    model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
-    # Avoid YFinanceTools here: it makes extra yfinance calls that can trigger
-    # Yahoo rate limits on shared cloud IPs. We already pass full market context.
-    news_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
-    # When Yahoo Finance is rate-limited, use Screener fundamentals + web search.
-    if data.get("source") == "screener_fallback":
-        market_context = f"""
-Symbol: {nse_symbol}
-Company: {data.get('name', nse_symbol)}
-Price: ₹{data['price']:.2f}
-Source: Screener.in fallback (Yahoo Finance temporarily unavailable)
-Market cap: {money(data['fundamentals'].get('market_cap'))}
-Trailing P/E: {number(data['fundamentals'].get('trailing_pe'))}
-Price/book: {number(data['fundamentals'].get('price_to_book'))}
-ROE: {pct(data['fundamentals'].get('roe'))}
-Revenue growth (3Y CAGR): {number(data['fundamentals'].get('revenue_growth'))}
-Dividend yield: {pct(data['fundamentals'].get('dividend_yield'))}
-Debt/equity: {number(data['fundamentals'].get('debt_to_equity'))}
-Trend: {data['technicals'].get('trend')}
-Note: Use web search (DuckDuckGo) for latest price action, news, and sector context.
-""".strip()
-    else:
-        market_context = build_context(data)
-
-    context = market_context
-    dependencies = {"symbol": nse_symbol, "context": context}
-
-    shared_instructions = [
-        "Be concise and investment-research focused.",
-        "Start the response with exactly: SCORE: X.X/10",
-        "Use the provided market context. Do not invent unavailable figures.",
-    ]
-    agents = {
-        "Fundamentals": Agent(
-            name="Fundamentals",
-            model=model,
-            tools=news_tools,
-            instructions=shared_instructions
-            + ["Score valuation, quality, growth, profitability, and balance sheet strength. Use web search if key metrics are missing."],
-        ),
-        "Technicals": Agent(
-            name="Technicals",
-            model=model,
-            tools=news_tools,
-            instructions=shared_instructions
-            + ["Score trend, momentum, levels, volume, and price action. Use web search for recent chart and news context when price history is unavailable."],
-        ),
-        "Sentiment": Agent(
-            name="Sentiment",
-            model=model,
-            tools=news_tools,
-            instructions=shared_instructions
-            + ["Score recent company and sector news sentiment. Mention uncertainty when news is thin."],
-        ),
-        "Risk": Agent(
-            name="Risk",
-            model=model,
-            tools=news_tools,
-            instructions=shared_instructions
-            + ["Score risk where a higher score means lower risk and better risk/reward."],
-        ),
-        "Coordinator": Agent(
-            name="Coordinator",
-            model=model,
-            instructions=[
-                "Write an executive stock research summary for a retail investor.",
-                "Use the agent scores and explain the final stance in 4-6 bullets.",
-                "Do not include a SCORE line.",
-            ],
-        ),
-    }
-
-    prompts = {
-        "Fundamentals": f"Analyze fundamentals for {nse_symbol}.\n\nContext:\n{context}",
-        "Technicals": f"Analyze technicals for {nse_symbol}.\n\nContext:\n{context}",
-        "Sentiment": f"Analyze recent sentiment and news for {nse_symbol} listed in India.\n\nContext:\n{context}",
-    }
-
-    outputs: dict[str, AgentResult] = {}
-    for name, prompt in prompts.items():
-        if progress_callback:
-            progress_callback(50, f"Running {name} analysis...")
-        outputs[name] = agent_or_fallback(name, agents[name], prompt, data, dependencies)
-
-    if progress_callback:
-        progress_callback(70, "Assessing risk...")
-
-    risk_prompt = (
-        f"Analyze downside risk for {nse_symbol}.\n\nContext:\n{context}\n\n"
-        f"Prior agent outputs:\n{format_agent_outputs(outputs)}"
-    )
-    outputs["Risk"] = agent_or_fallback("Risk", agents["Risk"], risk_prompt, data, dependencies)
-    if progress_callback:
-        progress_callback(80, "Generating report...")
-
-    composite = composite_score({name: r.score for name, r in outputs.items()})
-    verdict, _ = verdict_for_score(composite)
-    coordinator_prompt = (
-        f"Create the final executive summary for {nse_symbol} with verdict {verdict} "
-        f"and composite score {composite:.1f}/10.\n\nContext:\n{context}\n\n"
-        f"Agent outputs:\n{format_agent_outputs(outputs)}"
-    )
-    try:
-        final_report = run_agent(agents["Coordinator"], coordinator_prompt, dependencies)
-        if not final_report:
-            raise RuntimeError("Coordinator returned an empty response.")
-    except Exception as exc:
-        final_report = build_local_summary(data, outputs, f"Coordinator failed: {exc}")
-
-    if progress_callback:
-        progress_callback(95, None)
-
-    return {
-        "mode": "agent",
-        "agent_outputs": outputs,
-        "final_report": final_report,
-        "composite": composite,
-        "verdict": verdict,
-        "generated_at": datetime.now().strftime("%d %b %Y, %H:%M"),
-    }
-
-
-def run_local_pipeline(data: dict[str, Any], reason: str) -> dict[str, Any]:
-    outputs = {name: fallback_result(name, data, reason) for name in SCORE_ORDER}
-    composite = composite_score({name: r.score for name, r in outputs.items()})
-    verdict, _ = verdict_for_score(composite)
-    return {
-        "mode": "local",
-        "agent_outputs": outputs,
-        "final_report": build_local_summary(data, outputs, reason),
-        "composite": composite,
-        "verdict": verdict,
-        "generated_at": datetime.now().strftime("%d %b %Y, %H:%M"),
-    }
-
-
-def format_agent_outputs(outputs: dict[str, AgentResult]) -> str:
-    return "\n\n".join(
-        f"{name} ({outputs[name].score:.1f}/10):\n{outputs[name].content}"
-        for name in SCORE_ORDER
-        if name in outputs
-    )
-
-
-def build_local_summary(data: dict[str, Any], outputs: dict[str, AgentResult], reason: str) -> str:
-    composite = composite_score({name: r.score for name, r in outputs.items()})
-    verdict, _ = verdict_for_score(composite)
-    t = data["technicals"]
-    f = data["fundamentals"]
-    return f"""
-**{verdict}** with a composite score of **{composite:.1f}/10**.
-
-- Fundamentals score {outputs['Fundamentals'].score:.1f}/10, driven by P/E {number(f.get('trailing_pe'))}, ROE {pct(f.get('roe'))}, and debt/equity {number(f.get('debt_to_equity'))}.
-- Technicals score {outputs['Technicals'].score:.1f}/10 with a {str(t.get('trend')).lower()} EMA setup, RSI {number(t.get('rsi'))}, and 1Y return {number(t.get('return_1y_pct'), '%')}.
-- Sentiment score {outputs['Sentiment'].score:.1f}/10 uses local proxies because live news analysis was unavailable.
-- Risk score {outputs['Risk'].score:.1f}/10 reflects max drawdown {number(t.get('max_drawdown_pct'), '%')} and volatility {number(t.get('volatility_60d_pct'), '%')}.
-
-Local fallback mode: {reason}
-""".strip()
-
-
-def get_agent_output(result: dict[str, Any], data: dict[str, Any], name: str) -> AgentResult:
-    outputs = result.get("agent_outputs") or {}
-    output = outputs.get(name)
-    if isinstance(output, AgentResult):
-        return output
-    if isinstance(output, dict):
-        return AgentResult(
-            name=name,
-            content=str(output.get("content") or "No agent notes were returned."),
-            score=clamp_score(output.get("score", local_scores(data["fundamentals"], data["technicals"])[name])),
-            source=str(output.get("source") or "agent"),
-        )
-    return fallback_result(name, data, f"{name} agent output was unavailable.")
-
-
-def inline_markdown_to_html(text: str) -> str:
-    escaped = escape(str(text or ""))
-    return re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", escaped)
-
-
-def simple_markdown_to_html(text: str) -> str:
-    lines = [line.rstrip() for line in str(text or "").splitlines()]
-    html_lines: list[str] = []
-    in_list = False
-    for line in lines:
-        if not line:
-            if in_list:
-                html_lines.append("</ul>")
-                in_list = False
-            continue
-        if line.startswith("- "):
-            if not in_list:
-                html_lines.append("<ul>")
-                in_list = True
-            html_lines.append(f"<li>{inline_markdown_to_html(line[2:])}</li>")
-        else:
-            if in_list:
-                html_lines.append("</ul>")
-                in_list = False
-            html_lines.append(f"<p>{inline_markdown_to_html(line)}</p>")
-    if in_list:
-        html_lines.append("</ul>")
-    return "\n".join(html_lines)
-
-
-def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: Any) -> bytes:
-    """Build a branded, McKinsey-style multi-page PDF report."""
-
-    def safe_text(value: Any, max_len: int | None = None) -> str:
-        text = "" if value is None else str(value)
-        text = (
-            text.replace("₹", "Rs.")
-            .replace("—", "-")
-            .replace("–", "-")
-            .replace("’", "'")
-            .replace("“", '"')
-            .replace("”", '"')
-            .replace("×", "x")
-        )
-        text = text.encode("latin-1", "replace").decode("latin-1")
-        return text[:max_len] + "..." if max_len and len(text) > max_len else text
-
-    from datetime import date
-
-    NAVY = (18, 28, 46)
-    SLATE = (51, 65, 85)
-    CHARCOAL = (31, 41, 55)
-    GREY_MID = (107, 114, 128)
-    GREY_LIGHT = (248, 250, 252)
-    WHITE = (255, 255, 255)
-    LINE = (200, 205, 211)
-
-    scores = {
-        name: get_agent_output(result, data, name).score
-        for name in SCORE_ORDER
-    }
-    generated_at = str(result.get("generated_at", data.get("as_of", "")))
-    report_date = generated_at or date.today().strftime("%d %B %Y")
-    verdict = str(result.get("verdict", "Unavailable"))
-    symbol = str(data.get("symbol", ""))
-    name = str(data.get("name", symbol or "Stock Report"))
-    composite = float(result.get("composite", 0) or 0)
-
-    summary = re.sub(r"[*_`#>]+", "", str(result.get("final_report", "")))
-    summary = re.sub(r"\n{3,}", "\n\n", summary).strip()
-    if len(summary) > 1600:
-        summary = f"{summary[:1600].rstrip()}..."
-
-    class BrandedPDF(pdf_class):
-        def header(self):
-            if self.page_no() == 1:
-                return
-            self.set_font("Helvetica", "", 8)
-            self.set_text_color(*GREY_MID)
-            self.cell(
-                0,
-                10,
-                safe_text("AI App Factory | Stock Research Assistant"),
-                new_x="LMARGIN",
-                new_y="NEXT",
-            )
-            self.set_draw_color(*LINE)
-            self.line(20, self.get_y(), 190, self.get_y())
-            self.ln(2)
-
-        def footer(self):
-            self.set_y(-22)
-            self.set_draw_color(*LINE)
-            self.line(20, self.get_y(), 190, self.get_y())
-            self.ln(2)
-            self.set_font("Helvetica", "", 8)
-            self.set_text_color(*GREY_MID)
-            self.cell(
-                0,
-                5,
-                safe_text("Research aid - not investment advice. For internal use only."),
-                align="L",
-            )
-            self.set_y(-14)
-            self.cell(0, 5, f"{self.page_no()}", align="R")
-
-        def section_heading(self, text: str) -> None:
-            self.set_font("Helvetica", "B", 15)
-            self.set_text_color(*NAVY)
-            self.cell(0, 10, safe_text(text), new_x="LMARGIN", new_y="NEXT")
-            self.set_draw_color(*NAVY)
-            self.set_line_width(0.4)
-            self.line(20, self.get_y(), 65, self.get_y())
-            self.ln(4)
-
-        def body_text(self, text: Any, size: int = 10) -> None:
-            self.set_font("Helvetica", "", size)
-            self.set_text_color(*CHARCOAL)
-            self.multi_cell(0, 5.5, safe_text(text))
-            self.ln(2)
-
-        def bullet_list(self, items: list[str]) -> None:
-            self.set_font("Helvetica", "", 10)
-            self.set_text_color(*CHARCOAL)
-            for item in items:
-                self.set_x(25)
-                self.multi_cell(0, 5.5, safe_text(f"- {item}"))
-            self.ln(2)
-
-    pdf = BrandedPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-
-    # Cover page
-    pdf.add_page()
-    pdf.set_fill_color(*WHITE)
-    pdf.rect(0, 0, 210, 297, "F")
-
-    # Header band
-    pdf.set_fill_color(*NAVY)
-    pdf.rect(0, 0, 210, 42, "F")
-    pdf.set_y(14)
-    pdf.set_x(20)
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.set_text_color(*WHITE)
-    pdf.cell(0, 7, safe_text("AI App Factory"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_x(20)
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(180, 190, 205)
-    pdf.cell(0, 5, safe_text("Stock Research Assistant"))
-    pdf.set_x(130)
-    pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(180, 190, 205)
-    pdf.cell(0, 5, safe_text(report_date), align="R")
-
-    # Title block
-    pdf.set_y(75)
-    pdf.set_x(20)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*GREY_MID)
-    pdf.cell(0, 6, safe_text("EQUITY RESEARCH"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "B", 26)
-    pdf.set_text_color(*NAVY)
-    pdf.multi_cell(170, 13, safe_text(name))
-    pdf.ln(2)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.set_text_color(*SLATE)
-    pdf.cell(0, 7, safe_text(f"NSE: {symbol}"), new_x="LMARGIN", new_y="NEXT")
-
-    # Verdict panel
-    pdf.ln(14)
-    panel_y = pdf.get_y()
-    pdf.set_fill_color(*GREY_LIGHT)
-    pdf.set_draw_color(*LINE)
-    pdf.rect(20, panel_y, 170, 38, "FD")
-    pdf.set_xy(25, panel_y + 7)
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.set_text_color(*NAVY)
-    pdf.cell(40, 24, safe_text(verdict), align="L")
-    pdf.set_xy(70, panel_y + 8)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*CHARCOAL)
-    pdf.cell(0, 7, safe_text("Composite score"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_xy(70, panel_y + 17)
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.set_text_color(*NAVY)
-    pdf.cell(0, 10, safe_text(f"{composite:.1f} / 10"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_xy(140, panel_y + 8)
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*CHARCOAL)
-    pdf.cell(0, 7, safe_text("Risk rating"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_xy(140, panel_y + 17)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.set_text_color(*NAVY)
-    pdf.cell(0, 10, safe_text("Moderate"), new_x="LMARGIN", new_y="NEXT")
-
-    # Bottom metadata
-    pdf.set_y(258)
-    pdf.set_x(20)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(*GREY_MID)
-    doc_id = re.sub(r"[^A-Za-z0-9_-]+", "_", symbol).strip("_") or "STOCK"
-    for line in [
-        "Analyst: AI Research Team",
-        "Time horizon: 12 months",
-        f"Document ID: {doc_id}-ER-{date.today().strftime('%Y%m%d')}-001",
-    ]:
-        pdf.cell(0, 5, safe_text(line), new_x="LMARGIN", new_y="NEXT")
-
-    # Executive Summary
-    pdf.add_page()
-    pdf.section_heading("Executive Summary")
-    pdf.body_text(summary or "No executive summary available.")
-
-    # Scorecard
-    pdf.add_page()
-    pdf.section_heading("Scorecard")
-    pdf.set_fill_color(*NAVY)
-    pdf.set_text_color(*WHITE)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(70, 10, safe_text("Dimension"), border=0, align="L")
-    pdf.cell(40, 10, safe_text("Score"), border=0, align="C")
-    pdf.cell(80, 10, safe_text("Assessment"), border=0, align="L", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_draw_color(*LINE)
-    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
-    pdf.ln(2)
-
-    def score_assessment(score: float) -> str:
-        if score >= 7.5:
-            return "Strong"
-        if score >= 6.5:
-            return "Positive"
-        if score >= 5.5:
-            return "Neutral"
-        return "Weak"
-
-    for dim, score in scores.items():
-        pdf.set_fill_color(*GREY_LIGHT)
-        pdf.rect(20, pdf.get_y(), 170, 10, "F")
-        pdf.set_text_color(*CHARCOAL)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(70, 10, safe_text(dim))
-        pdf.set_font("Helvetica", "", 10)
-        pdf.cell(40, 10, safe_text(f"{score:.1f}/10"), align="C")
-        pdf.cell(80, 10, safe_text(score_assessment(score)))
-        pdf.ln(12)
-
-    pdf.ln(6)
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_text_color(*NAVY)
-    pdf.cell(0, 8, safe_text("Composite Verdict"), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*CHARCOAL)
-    pdf.multi_cell(
-        0,
-        6,
-        safe_text(
-            f"{verdict} - Composite score {composite:.1f}/10. "
-            "Based on fundamentals, technicals, sentiment, and risk assessment."
-        ),
-    )
-
-    # Disclaimer
-    pdf.add_page()
-    pdf.section_heading("Disclaimer")
-    pdf.body_text(
-        "This report is for research workflow support and education only. "
-        "It is not investment advice, a recommendation, or a solicitation to buy or sell securities. "
-        "Verify all figures with official filings and consult a SEBI-registered investment adviser before acting."
-    )
-
-    output = pdf.output(dest="S")
-    if isinstance(output, bytearray):
-        return bytes(output)
-    if isinstance(output, bytes):
-        return output
-    return output.encode("latin-1", "replace")
-
-
-def build_report_text(data: dict[str, Any], result: dict[str, Any]) -> str:
-    score_lines = [
-        f"{name}: {get_agent_output(result, data, name).score:.1f}/10"
-        for name in SCORE_ORDER
-    ]
-    return "\n".join(
-        [
-            f"{data.get('name', 'Stock Report')} ({data.get('symbol', '')})",
-            f"Generated: {result.get('generated_at', data.get('as_of', ''))}",
-            f"Verdict: {result.get('verdict', 'Unavailable')}",
-            f"Composite score: {result.get('composite', 0):.1f}/10",
-            "",
-            "Scores:",
-            *score_lines,
-            "",
-            "Executive Summary:",
-            str(result.get("final_report", "")),
-        ]
-    )
-
-
-def report_download_payload(data: dict[str, Any], result: dict[str, Any]) -> tuple[bytes, str, str]:
-    filename_base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(data.get("base_symbol") or data.get("symbol") or "stock_report")).strip("_")
-    try:
-        from fpdf import FPDF
-
-        pdf = build_report_pdf(data, result, FPDF)
-        return pdf, f"{filename_base}_analysis.pdf", "application/pdf"
-    except Exception:
-        text = build_report_text(data, result).encode("utf-8")
-        return text, f"{filename_base}_analysis.txt", "text/plain"
-
-
-def run_analysis(
-    symbol: str,
-    api_key: str,
-    progress_callback: Callable[[int, str | None], None] | None = None,
-    resolved: dict[str, str] | None = None,
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    if resolved is None:
-        resolved = resolve_ticker(symbol)
-    nse_symbol = resolved["symbol"]
-    if not nse_symbol:
-        raise ValueError(
-            f"We couldn't find a listed NSE ticker for '{symbol}'. "
-            "Try the exact symbol (e.g. INFY) or a clearer company name."
-        )
-
-    try:
-        data = load_market_data(nse_symbol)
-    except YFinanceRateLimitError:
-        raise
-    except Exception as exc:
-        raise RuntimeError(f"Could not load market data for {nse_symbol}: {exc}")
-
-    if progress_callback:
-        progress_callback(20, "Running AI analysis...")
-    if api_key:
-        result = run_agent_pipeline(api_key, nse_symbol, data, progress_callback)
-    else:
-        if progress_callback:
-            progress_callback(70, "Assessing risk...")
-            progress_callback(80, "Generating report...")
-            progress_callback(95, None)
-        result = run_local_pipeline(data, "DEEPSEEK_API_KEY is missing.")
-    return data, result
-
-
 def _clean_email(email: str) -> str:
     return (email or "").strip().lower()
 
@@ -3746,6 +2787,287 @@ def render_sidebar() -> tuple[str, str]:
     return email, symbol
 
 
+def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: Any) -> bytes:
+    """Build a branded, McKinsey-style multi-page PDF report."""
+
+    def safe_text(value: Any, max_len: int | None = None) -> str:
+        text = "" if value is None else str(value)
+        text = (
+            text.replace("₹", "Rs.")
+            .replace("—", "-")
+            .replace("–", "-")
+            .replace("’", "'")
+            .replace("“", '"')
+            .replace("”", '"')
+            .replace("×", "x")
+        )
+        text = text.encode("latin-1", "replace").decode("latin-1")
+        return text[:max_len] + "..." if max_len and len(text) > max_len else text
+
+    from datetime import date
+
+    NAVY = (18, 28, 46)
+    SLATE = (51, 65, 85)
+    CHARCOAL = (31, 41, 55)
+    GREY_MID = (107, 114, 128)
+    GREY_LIGHT = (248, 250, 252)
+    WHITE = (255, 255, 255)
+    LINE = (200, 205, 211)
+
+    scores = {
+        name: get_agent_output(result, data, name).score
+        for name in SCORE_ORDER
+    }
+    generated_at = str(result.get("generated_at", data.get("as_of", "")))
+    report_date = generated_at or date.today().strftime("%d %B %Y")
+    verdict = str(result.get("verdict", "Unavailable"))
+    symbol = str(data.get("symbol", ""))
+    name = str(data.get("name", symbol or "Stock Report"))
+    composite = float(result.get("composite", 0) or 0)
+
+    summary = re.sub(r"[*_`#>]+", "", str(result.get("final_report", "")))
+    summary = re.sub(r"\n{3,}", "\n\n", summary).strip()
+    if len(summary) > 1600:
+        summary = f"{summary[:1600].rstrip()}..."
+
+    class BrandedPDF(pdf_class):
+        def header(self):
+            if self.page_no() == 1:
+                return
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(*GREY_MID)
+            self.cell(
+                0,
+                10,
+                safe_text("AI App Factory | Stock Research Assistant"),
+                new_x="LMARGIN",
+                new_y="NEXT",
+            )
+            self.set_draw_color(*LINE)
+            self.line(20, self.get_y(), 190, self.get_y())
+            self.ln(2)
+
+        def footer(self):
+            self.set_y(-22)
+            self.set_draw_color(*LINE)
+            self.line(20, self.get_y(), 190, self.get_y())
+            self.ln(2)
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(*GREY_MID)
+            self.cell(
+                0,
+                5,
+                safe_text("Research aid - not investment advice. For internal use only."),
+                align="L",
+            )
+            self.set_y(-14)
+            self.cell(0, 5, f"{self.page_no()}", align="R")
+
+        def section_heading(self, text: str) -> None:
+            self.set_font("Helvetica", "B", 15)
+            self.set_text_color(*NAVY)
+            self.cell(0, 10, safe_text(text), new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(*NAVY)
+            self.set_line_width(0.4)
+            self.line(20, self.get_y(), 65, self.get_y())
+            self.ln(4)
+
+        def body_text(self, text: Any, size: int = 10) -> None:
+            self.set_font("Helvetica", "", size)
+            self.set_text_color(*CHARCOAL)
+            self.multi_cell(0, 5.5, safe_text(text))
+            self.ln(2)
+
+        def bullet_list(self, items: list[str]) -> None:
+            self.set_font("Helvetica", "", 10)
+            self.set_text_color(*CHARCOAL)
+            for item in items:
+                self.set_x(25)
+                self.multi_cell(0, 5.5, safe_text(f"- {item}"))
+            self.ln(2)
+
+    pdf = BrandedPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Cover page
+    pdf.add_page()
+    pdf.set_fill_color(*WHITE)
+    pdf.rect(0, 0, 210, 297, "F")
+
+    # Header band
+    pdf.set_fill_color(*NAVY)
+    pdf.rect(0, 0, 210, 42, "F")
+    pdf.set_y(14)
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(*WHITE)
+    pdf.cell(0, 7, safe_text("AI App Factory"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(180, 190, 205)
+    pdf.cell(0, 5, safe_text("Stock Research Assistant"))
+    pdf.set_x(130)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(180, 190, 205)
+    pdf.cell(0, 5, safe_text(report_date), align="R")
+
+    # Title block
+    pdf.set_y(75)
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*GREY_MID)
+    pdf.cell(0, 6, safe_text("EQUITY RESEARCH"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "B", 26)
+    pdf.set_text_color(*NAVY)
+    pdf.multi_cell(170, 13, safe_text(name))
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.set_text_color(*SLATE)
+    pdf.cell(0, 7, safe_text(f"NSE: {symbol}"), new_x="LMARGIN", new_y="NEXT")
+
+    # Verdict panel
+    pdf.ln(14)
+    panel_y = pdf.get_y()
+    pdf.set_fill_color(*GREY_LIGHT)
+    pdf.set_draw_color(*LINE)
+    pdf.rect(20, panel_y, 170, 38, "FD")
+    pdf.set_xy(25, panel_y + 7)
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_text_color(*NAVY)
+    pdf.cell(40, 24, safe_text(verdict), align="L")
+    pdf.set_xy(70, panel_y + 8)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*CHARCOAL)
+    pdf.cell(0, 7, safe_text("Composite score"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(70, panel_y + 17)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*NAVY)
+    pdf.cell(0, 10, safe_text(f"{composite:.1f} / 10"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(140, panel_y + 8)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*CHARCOAL)
+    pdf.cell(0, 7, safe_text("Risk rating"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_xy(140, panel_y + 17)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_text_color(*NAVY)
+    pdf.cell(0, 10, safe_text("Moderate"), new_x="LMARGIN", new_y="NEXT")
+
+    # Bottom metadata
+    pdf.set_y(258)
+    pdf.set_x(20)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*GREY_MID)
+    doc_id = re.sub(r"[^A-Za-z0-9_-]+", "_", symbol).strip("_") or "STOCK"
+    for line in [
+        "Analyst: AI Research Team",
+        "Time horizon: 12 months",
+        f"Document ID: {doc_id}-ER-{date.today().strftime('%Y%m%d')}-001",
+    ]:
+        pdf.cell(0, 5, safe_text(line), new_x="LMARGIN", new_y="NEXT")
+
+    # Executive Summary
+    pdf.add_page()
+    pdf.section_heading("Executive Summary")
+    pdf.body_text(summary or "No executive summary available.")
+
+    # Scorecard
+    pdf.add_page()
+    pdf.section_heading("Scorecard")
+    pdf.set_fill_color(*NAVY)
+    pdf.set_text_color(*WHITE)
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(70, 10, safe_text("Dimension"), border=0, align="L")
+    pdf.cell(40, 10, safe_text("Score"), border=0, align="C")
+    pdf.cell(80, 10, safe_text("Assessment"), border=0, align="L", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_draw_color(*LINE)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(2)
+
+    def score_assessment(score: float) -> str:
+        if score >= 7.5:
+            return "Strong"
+        if score >= 6.5:
+            return "Positive"
+        if score >= 5.5:
+            return "Neutral"
+        return "Weak"
+
+    for dim, score in scores.items():
+        pdf.set_fill_color(*GREY_LIGHT)
+        pdf.rect(20, pdf.get_y(), 170, 10, "F")
+        pdf.set_text_color(*CHARCOAL)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(70, 10, safe_text(dim))
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(40, 10, safe_text(f"{score:.1f}/10"), align="C")
+        pdf.cell(80, 10, safe_text(score_assessment(score)))
+        pdf.ln(12)
+
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*NAVY)
+    pdf.cell(0, 8, safe_text("Composite Verdict"), new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*CHARCOAL)
+    pdf.multi_cell(
+        0,
+        6,
+        safe_text(
+            f"{verdict} - Composite score {composite:.1f}/10. "
+            "Based on fundamentals, technicals, sentiment, and risk assessment."
+        ),
+    )
+
+    # Disclaimer
+    pdf.add_page()
+    pdf.section_heading("Disclaimer")
+    pdf.body_text(
+        "This report is for research workflow support and education only. "
+        "It is not investment advice, a recommendation, or a solicitation to buy or sell securities. "
+        "Verify all figures with official filings and consult a SEBI-registered investment adviser before acting."
+    )
+
+    output = pdf.output(dest="S")
+    if isinstance(output, bytearray):
+        return bytes(output)
+    if isinstance(output, bytes):
+        return output
+    return output.encode("latin-1", "replace")
+
+
+def build_report_text(data: dict[str, Any], result: dict[str, Any]) -> str:
+    score_lines = [
+        f"{name}: {get_agent_output(result, data, name).score:.1f}/10"
+        for name in SCORE_ORDER
+    ]
+    return "\n".join(
+        [
+            f"{data.get('name', 'Stock Report')} ({data.get('symbol', '')})",
+            f"Generated: {result.get('generated_at', data.get('as_of', ''))}",
+            f"Verdict: {result.get('verdict', 'Unavailable')}",
+            f"Composite score: {result.get('composite', 0):.1f}/10",
+            "",
+            "Scores:",
+            *score_lines,
+            "",
+            "Executive Summary:",
+            str(result.get("final_report", "")),
+        ]
+    )
+
+
+def report_download_payload(data: dict[str, Any], result: dict[str, Any]) -> tuple[bytes, str, str]:
+    filename_base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(data.get("base_symbol") or data.get("symbol") or "stock_report")).strip("_")
+    try:
+        from fpdf import FPDF
+
+        pdf = build_report_pdf(data, result, FPDF)
+        return pdf, f"{filename_base}_analysis.pdf", "application/pdf"
+    except Exception:
+        text = build_report_text(data, result).encode("utf-8")
+        return text, f"{filename_base}_analysis.txt", "text/plain"
+
+
 def render_stock_header(data: dict[str, Any]) -> None:
     stock_header_card(data)
 
@@ -3980,11 +3302,18 @@ def _deep_get_api_key() -> str:
 
 
 def _deep_symbol(data: dict, fallback_symbol: str | None = None) -> str:
+    """Resolve the active symbol for Deep Research tab with multi-source fallback.
+
+    Priority: explicit param → data dict → session_state symbol → session_state market_data →
+    sidebar text input → empty string.
+    """
     raw = (
         fallback_symbol
         or data.get("symbol")
         or data.get("nse_symbol")
         or data.get("ticker")
+        or st.session_state.get("sra_market_data", {}).get("symbol")
+        or st.session_state.get("symbol_input")
         or ""
     )
     symbol = str(raw).strip().upper()
@@ -4146,6 +3475,10 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
     if "deep_research" not in st.session_state:
         st.session_state["sra_deep_research"] = {}
 
+    # Persist symbol from sidebar input if explicit symbol wasn't passed
+    if not symbol:
+        symbol = st.session_state.get("symbol_input", "")
+
     active_symbol = _deep_symbol(data, symbol)
     if not active_symbol:
         st.error("Unable to determine symbol for Deep Research.")
@@ -4232,142 +3565,45 @@ def render_footer(email: str) -> None:
 
 
 def report_file_symbol(symbol: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9_-]+", "_", str(symbol or "stock")).strip("_")
-    return cleaned or "stock"
+    return report_history_service.report_file_symbol(symbol)
 
 
 def report_path_for(symbol: str, timestamp: str) -> Path:
-    return REPORTS_DIR / f"{report_file_symbol(symbol)}_{timestamp}.json"
+    return report_history_service.report_path_for(REPORTS_DIR, symbol, timestamp)
 
 
 def timestamp_from_report_path(path: Path) -> str:
-    try:
-        _, date_part, time_part = path.stem.rsplit("_", 2)
-        return f"{date_part}_{time_part}"
-    except ValueError:
-        return ""
+    return report_history_service.timestamp_from_report_path(path)
 
 
 def json_safe(value: Any) -> Any:
-    if value is None or value is pd.NA:
-        return None
-    if isinstance(value, AgentResult):
-        return {
-            "name": value.name,
-            "content": value.content,
-            "score": value.score,
-            "source": value.source,
-        }
-    if isinstance(value, pd.DataFrame):
-        frame = value.reset_index()
-        return {
-            "__type": "dataframe",
-            "records": json_safe(frame.to_dict(orient="records")),
-        }
-    if isinstance(value, (datetime, pd.Timestamp)):
-        return value.isoformat()
-    if isinstance(value, dict):
-        return {str(key): json_safe(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [json_safe(item) for item in value]
-    if isinstance(value, (str, int, bool)):
-        return value
-    if isinstance(value, float):
-        return None if pd.isna(value) else value
-    if hasattr(value, "item"):
-        try:
-            return json_safe(value.item())
-        except Exception:
-            return str(value)
-    try:
-        if pd.isna(value):
-            return None
-    except Exception:
-        return str(value)
-    return str(value)
+    return report_history_service.json_safe(value)
 
 
 def restore_dataframe(value: Any) -> pd.DataFrame:
-    if isinstance(value, dict) and value.get("__type") == "dataframe":
-        frame = pd.DataFrame(value.get("records") or [])
-    else:
-        frame = pd.DataFrame(value)
-    for column in ("Date", "Datetime", "index"):
-        if column in frame.columns:
-            parsed = pd.to_datetime(frame[column], errors="coerce")
-            if parsed.notna().any():
-                frame[column] = parsed
-            frame = frame.set_index(column)
-            break
-    return frame
+    return report_history_service.restore_dataframe(value)
 
 
 def restore_report_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    data = dict(payload.get("data") or {})
-    result = dict(payload.get("result") or {})
-    if "history" in data:
-        data["history"] = restore_dataframe(data["history"])
-    outputs = result.get("agent_outputs")
-    if isinstance(outputs, dict):
-        restored_outputs = {}
-        for name, output in outputs.items():
-            if isinstance(output, AgentResult):
-                restored_outputs[name] = output
-            elif isinstance(output, dict):
-                restored_outputs[name] = AgentResult(
-                    name=str(output.get("name") or name),
-                    content=str(output.get("content") or "No agent notes were returned."),
-                    score=clamp_score(output.get("score", 5.0)),
-                    source=str(output.get("source") or "agent"),
-                )
-            else:
-                restored_outputs[name] = output
-        result["agent_outputs"] = restored_outputs
-    return data, result
+    return report_history_service.restore_report_payload(payload)
 
 
 def read_report_file(path: Path) -> dict[str, Any] | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    return report_history_service.read_report_file(path)
 
 
 def enforce_report_cap() -> None:
-    try:
-        files = sorted(REPORTS_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except Exception:
-        return
-    for path in files[MAX_REPORT_FILES:]:
-        try:
-            path.unlink()
-        except Exception:
-            continue
+    report_history_service.enforce_report_cap(REPORTS_DIR, MAX_REPORT_FILES)
 
 
 def save_report(data: dict[str, Any], result: dict[str, Any], email: str = "") -> dict[str, str] | None:
-    try:
-        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        symbol = str(data.get("base_symbol") or data.get("symbol") or "stock")
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        clean_email = str(email or "").strip().lower()
-        payload = {
-            "symbol": symbol,
-            "name": str(data.get("name") or symbol),
-            "verdict": str(result.get("verdict") or "Unavailable"),
-            "score": float(result.get("composite") or 0),
-            "time": str(result.get("generated_at") or data.get("as_of") or ""),
-            "timestamp": timestamp,
-            "email": clean_email,
-            "data": json_safe(data),
-            "result": json_safe(result),
-        }
-        path = report_path_for(symbol, timestamp)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        enforce_report_cap()
-        return {"timestamp": timestamp, "path": str(path)}
-    except Exception:
-        return None
+    return report_history_service.save_report(
+        data,
+        result,
+        email=email,
+        reports_dir=REPORTS_DIR,
+        max_report_files=MAX_REPORT_FILES,
+    )
 
 
 def load_history_from_disk() -> None:
@@ -4376,63 +3612,29 @@ def load_history_from_disk() -> None:
         st.session_state.sra_report_history = []
         st.session_state["_history_email"] = ""
         return
-
-    try:
-        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        files = sorted(REPORTS_DIR.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    except Exception:
+    history = report_history_service.load_history_items(REPORTS_DIR, email, MAX_REPORT_FILES)
+    if history is None:
         return
-
-    history = []
-    for path in files[:MAX_REPORT_FILES]:
-        payload = read_report_file(path)
-        if not payload:
-            continue
-        payload_email = str(payload.get("email") or "").strip().lower()
-        if payload_email != email:
-            continue
-        symbol = str(payload.get("symbol") or "").strip()
-        timestamp = str(payload.get("timestamp") or timestamp_from_report_path(path)).strip()
-        if not symbol or not timestamp:
-            continue
-        history.append(
-            {
-                "symbol": symbol,
-                "name": str(payload.get("name") or symbol),
-                "verdict": str(payload.get("verdict") or "Unavailable"),
-                "score": float(payload.get("score") or 0),
-                "time": str(payload.get("time") or ""),
-                "timestamp": timestamp,
-                "path": str(path),
-                "email": payload_email,
-            }
-        )
     st.session_state.sra_report_history = history
     st.session_state["_history_email"] = email
-    enforce_report_cap()
 
 
 def load_report(symbol: str, timestamp: str) -> bool:
-    payload = read_report_file(report_path_for(symbol, timestamp))
-    if not payload:
+    payload = report_history_service.load_report_payload(REPORTS_DIR, symbol, timestamp)
+    if payload is None:
         return False
-    data, result = restore_report_payload(payload)
-    if not data or not result:
-        return False
+    data, result = payload
     st.session_state.sra_market_data = data
     st.session_state.sra_result = result
     return True
 
 
 def report_payload_from_history(item: dict[str, Any]) -> tuple[bytes, str, str] | None:
-    payload = read_report_file(report_path_for(str(item.get("symbol", "")), str(item.get("timestamp", ""))))
-    if not payload:
-        return None
-    data, result = restore_report_payload(payload)
-    try:
-        return report_download_payload(data, result)
-    except Exception:
-        return None
+    return report_history_service.report_payload_from_history(
+        item,
+        reports_dir=REPORTS_DIR,
+        download_builder=report_download_payload,
+    )
 
 
 def add_history(data: dict[str, Any], result: dict[str, Any]) -> None:

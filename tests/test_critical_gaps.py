@@ -247,11 +247,11 @@ class TestLoadMarketDataFallback:
 
     def test_yf_none_goes_to_screener_directly(self, monkeypatch):
         """When yfinance not installed, skip straight to screener fallback."""
-        monkeypatch.setattr("app.yf", None)
-        monkeypatch.setattr("app.fetch_screener_financials",
+        monkeypatch.setattr("services.market_data.yf", None)
+        monkeypatch.setattr("services.market_data.fetch_screener_financials",
                             lambda _: {"success": True,
                                        "data": {"ratios": {"current_price": 800, "market_cap": 500000}}})
-        monkeypatch.setattr("app._current_price_from_web_sources", lambda _: 800)
+        monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: 800)
 
         from app import _market_data_from_screener
         result = _market_data_from_screener("SBIN.NS")
@@ -260,9 +260,9 @@ class TestLoadMarketDataFallback:
 
     def test_screener_falls_back_to_web_search(self, monkeypatch):
         """Screener returns success=False → web search fallback."""
-        monkeypatch.setattr("app.fetch_screener_financials",
+        monkeypatch.setattr("services.market_data.fetch_screener_financials",
                             lambda _: {"success": False, "warnings": ["blocked"]})
-        monkeypatch.setattr("app._current_price_from_web_sources", lambda _: 102)
+        monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: 102)
 
         from app import _market_data_from_screener
         result = _market_data_from_screener("SBIN.NS")
@@ -271,9 +271,9 @@ class TestLoadMarketDataFallback:
 
     def test_all_layers_fail_raises_honest_error(self, monkeypatch):
         """All three layers fail → honest error, not Yahoo-only message."""
-        monkeypatch.setattr("app.fetch_screener_financials",
+        monkeypatch.setattr("services.market_data.fetch_screener_financials",
                             lambda _: {"success": False, "warnings": ["blocked"]})
-        monkeypatch.setattr("app._current_price_from_web_sources", lambda _: None)
+        monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: None)
 
         from app import _market_data_from_screener
         with pytest.raises(RuntimeError) as exc_info:
