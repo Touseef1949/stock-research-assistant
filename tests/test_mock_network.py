@@ -141,6 +141,8 @@ def test_load_market_data_with_mock_yfinance(monkeypatch):
     # Also patch service module's reference
     monkeypatch.setattr("services.market_data.ticker_info", mock_ticker_info)
     monkeypatch.setattr("services.market_data.ticker_history", mock_ticker_history)
+    # Disable Kite overlay for this test
+    monkeypatch.setattr("services.market_data._try_kite_overlay", lambda *a, **kw: None)
 
     data = load_market_data("SBIN.NS")
 

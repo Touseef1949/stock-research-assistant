@@ -99,6 +99,8 @@ def _safe_ratio_name(name: str) -> str:
 
 
 def _market_data_source_badge(data: dict[str, Any]) -> str:
+    if data.get("source") == "kite_live":
+        return "⚡ Live market data from Zerodha Kite"
     if data.get("source") == "screener_fallback":
         return "📡 Live market data from Screener.in (Yahoo Finance was temporarily unavailable)"
     if data.get("source") == "web_search_fallback":
@@ -381,7 +383,7 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
         "volatility_60d_pct": float(close.pct_change().tail(60).std() * (252**0.5) * 100),
     }
 
-    return {
+    data = {
         "symbol": nse_symbol,
         "base_symbol": display_symbol(nse_symbol),
         "name": info.get("longName") or info.get("shortName") or nse_symbol,
@@ -397,3 +399,40 @@ def load_market_data(nse_symbol: str) -> dict[str, Any]:
         "as_of": datetime.now().strftime("%d %b %Y, %H:%M"),
         "source": "yfinance",
     }
+
+    # Kite live-price overlay (optional — gracefully degrades)
+    _try_kite_overlay(data, nse_symbol)
+
+    return data
+
+
+def _try_kite_overlay(data: dict, nse_symbol: str) -> None:
+    """Overlay live Kite prices on top of yfinance/Screener data when available."""
+    try:
+        from services.kite_client import get_live_quote
+
+        base = __import__("logic").display_symbol(nse_symbol)
+        quote = get_live_quote(base)
+        if not quote:
+            return
+
+        ltp = quote.get("ltp")
+        if not ltp:
+            return
+
+        data["price"] = ltp
+        data["change"] = quote.get("change", data.get("change", 0.0))
+        data["change_pct"] = quote.get("change_pct", data.get("change_pct", 0.0))
+        data["source"] = "kite_live"
+
+        t = data.get("technicals", {})
+        if quote.get("open"):
+            t["open"] = quote["open"]
+        if quote.get("high"):
+            t["day_high"] = quote["high"]
+        if quote.get("low"):
+            t["day_low"] = quote["low"]
+        if quote.get("volume"):
+            t["latest_volume"] = quote["volume"]
+    except Exception:
+        pass  # Kite is optional — never crash on it
