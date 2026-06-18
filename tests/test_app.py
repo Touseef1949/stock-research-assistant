@@ -272,10 +272,15 @@ class TestEmailGate:
 
 
 class TestAnalyzeButton:
-    def test_analyze_button_renders_primary(self, app: AppTest):
-        """Hero analyze button exists and is primary type."""
-        btn = app.button(key="hero_analyze_button")
+    def test_analyze_button_renders_primary(self, app_auth: AppTest):
+        """Hero analyze button exists and is primary type — requires auth."""
+        btn = app_auth.button(key="hero_analyze_button")
         assert btn is not None
+
+    def test_analyze_button_hidden_when_unauthenticated(self, app: AppTest):
+        """Hero CTA is gated behind auth — not visible to unauthenticated users."""
+        with pytest.raises(KeyError):
+            app.button(key="hero_analyze_button")
 
     @pytest.mark.skip(reason="AppTest st.stop() incompatible with network-heavy app; validate manually")
     def test_analyze_without_email_shows_warning(self, app: AppTest):

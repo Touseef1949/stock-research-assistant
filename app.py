@@ -1999,8 +1999,8 @@ def _inject_mobile_styles() -> None:
                 height: 24px !important;
             }
 
-            /* Collapse button — proper FAB when sidebar is closed */
-            [data-testid="collapsedControl"] {
+            /* Sidebar expand button — proper FAB when sidebar is closed */
+            [data-testid="stExpandSidebarButton"] {
                 position: fixed !important;
                 top: 0.75rem !important;
                 left: 0.75rem !important;
@@ -2008,17 +2008,23 @@ def _inject_mobile_styles() -> None:
                 width: 44px !important;
                 height: 44px !important;
                 min-height: 44px !important;
+                min-width: 44px !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 border-radius: 12px !important;
                 border: 1px solid var(--border, #E8E8E8) !important;
-                background: var(--bg-primary, #FFFFFF) !important;
+                background: var(--panel, #FFFFFF) !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+            }
+            [data-testid="stExpandSidebarButton"] svg {
+                width: 22px !important;
+                height: 22px !important;
             }
 
             /* Main content reclaims full width — NO offset for rail */
             [data-testid="stAppViewContainer"],
-            .main .block-container,
+            [data-testid="stAppViewContainer"] .block-container,
             [data-testid="stAppViewContainer"] > section {
                 margin-left: 0 !important;
                 padding-left: 0 !important;
@@ -2027,14 +2033,14 @@ def _inject_mobile_styles() -> None:
             }
 
             /* ---------- 2. MAIN CONTENT PADDING ---------- */
-            .main .block-container {
+            [data-testid="stAppViewContainer"] .block-container {
                 padding: 1rem 1rem 4rem 1rem !important;
                 max-width: 100% !important;
                 box-sizing: border-box !important;
             }
 
-            [data-testid="stAppViewContainer"] > .main {
-                padding-top: 1.25rem !important;
+            [data-testid="stAppViewContainer"] > section {
+                padding-top: 0.5rem !important;
             }
 
             [data-testid="stVerticalBlock"] {
@@ -2043,24 +2049,24 @@ def _inject_mobile_styles() -> None:
 
             /* ---------- 3. FONT SIZE FLOOR (WCAG 14px minimum) ---------- */
             /* Use hard 14px override — max() doesn't beat Streamlit's !important */
-            .main .block-container p,
-            .main .block-container span,
-            .main .block-container label,
-            .main .block-container [data-testid="stWidgetLabel"],
-            .main .block-container [data-testid="stWidgetLabel"] label,
-            .main .block-container [data-testid="stMarkdown"] p,
-            .main .block-container [data-testid="stMarkdown"] span,
-            .main .block-container small,
-            .main .block-container [data-testid="stCaptionContainer"],
-            .main .block-container [data-testid="stCaptionContainer"] p {
+            [data-testid="stAppViewContainer"] .block-container p,
+            [data-testid="stAppViewContainer"] .block-container span,
+            [data-testid="stAppViewContainer"] .block-container label,
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stWidgetLabel"],
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stWidgetLabel"] label,
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stMarkdown"] p,
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stMarkdown"] span,
+            [data-testid="stAppViewContainer"] .block-container small,
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stCaptionContainer"],
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stCaptionContainer"] p {
                 font-size: 0.875rem !important;
                 line-height: 1.4 !important;
             }
 
             /* Headings — mobile-appropriate sizes */
-            .main h1 { font-size: 1.5rem !important; }
-            .main h2 { font-size: 1.25rem !important; }
-            .main h3 { font-size: 1.125rem !important; }
+            [data-testid="stAppViewContainer"] h1 { font-size: 1.5rem !important; }
+            [data-testid="stAppViewContainer"] h2 { font-size: 1.25rem !important; }
+            [data-testid="stAppViewContainer"] h3 { font-size: 1.125rem !important; }
 
             /* Section labels that measured 10.88px — force 14px */
             [data-testid="stSidebar"] [data-testid="stMarkdown"] span,
@@ -2071,13 +2077,13 @@ def _inject_mobile_styles() -> None:
             }
 
             /* ---------- 4. TAP TARGETS (44px minimum) ---------- */
-            .main .block-container a,
-            .main .block-container button,
-            .main .block-container [role="button"],
-            .main .block-container select,
-            .main .block-container input,
-            .main .block-container [data-testid="baseButton-secondary"],
-            .main .block-container [data-testid="baseButton-primary"] {
+            [data-testid="stAppViewContainer"] .block-container a,
+            [data-testid="stAppViewContainer"] .block-container button,
+            [data-testid="stAppViewContainer"] .block-container [role="button"],
+            [data-testid="stAppViewContainer"] .block-container select,
+            [data-testid="stAppViewContainer"] .block-container input,
+            [data-testid="stAppViewContainer"] .block-container [data-testid="baseButton-secondary"],
+            [data-testid="stAppViewContainer"] .block-container [data-testid="baseButton-primary"] {
                 min-height: 44px !important;
                 min-width: 44px !important;
                 display: inline-flex !important;
@@ -2087,7 +2093,7 @@ def _inject_mobile_styles() -> None:
             }
 
             /* Email link (measured 161x18) */
-            .main .block-container a[href^="mailto:"] {
+            [data-testid="stAppViewContainer"] .block-container a[href^="mailto:"] {
                 min-height: 44px !important;
                 padding: 0.75rem 0 !important;
                 display: inline-flex !important;
@@ -2095,8 +2101,8 @@ def _inject_mobile_styles() -> None:
             }
 
             /* Heading anchor links (measured 16x16) */
-            .main .block-container a[href^="#"],
-            .main .block-container .header-anchor {
+            [data-testid="stAppViewContainer"] .block-container a[href^="#"],
+            [data-testid="stAppViewContainer"] .block-container .header-anchor {
                 min-height: 44px !important;
                 min-width: 44px !important;
                 display: inline-flex !important;
@@ -2245,9 +2251,9 @@ def _inject_mobile_styles() -> None:
             }
 
             /* ---------- 12. CHARTS / PLOTS ---------- */
-            .main .block-container [data-testid="stPlotlyChart"],
-            .main .block-container [data-testid="stVegaLiteChart"],
-            .main .block-container .stPlotlyChart {
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stPlotlyChart"],
+            [data-testid="stAppViewContainer"] .block-container [data-testid="stVegaLiteChart"],
+            [data-testid="stAppViewContainer"] .block-container .stPlotlyChart {
                 overflow-x: auto !important;
                 -webkit-overflow-scrolling: touch !important;
                 max-width: 100% !important;
@@ -2295,7 +2301,7 @@ def _inject_mobile_styles() -> None:
 
         /* ---------- EXTRA-TIGHT SCREENS (<=380px, iPhone SE) ---------- */
         @media (max-width: 380px) {
-            .main .block-container {
+            [data-testid="stAppViewContainer"] .block-container {
                 padding: 0.75rem 0.75rem 4rem 0.75rem !important;
             }
 
@@ -2303,8 +2309,8 @@ def _inject_mobile_styles() -> None:
                 width: 90vw !important;
             }
 
-            .main h1 { font-size: 1.375rem !important; }
-            .main h2 { font-size: 1.125rem !important; }
+            [data-testid="stAppViewContainer"] h1 { font-size: 1.375rem !important; }
+            [data-testid="stAppViewContainer"] h2 { font-size: 1.125rem !important; }
 
             .executive-verdict-metrics {
                 grid-template-columns: 1fr !important;
@@ -2378,11 +2384,13 @@ def _inject_mobile_sidebar_close_js() -> None:
   // Wait for Streamlit to fully render
   setTimeout(setupScrimClose, 1000);
   // Also re-setup on Streamlit reruns
-  const observer = new MutationObserver(function() {
-    clearTimeout(window._scrimTimer);
-    window._scrimTimer = setTimeout(setupScrimClose, 500);
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (document.body) {
+    const observer = new MutationObserver(function() {
+      clearTimeout(window._scrimTimer);
+      window._scrimTimer = setTimeout(setupScrimClose, 500);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 })();
 </script>
 """,
@@ -3752,9 +3760,31 @@ def main() -> None:
     email, symbol = render_sidebar()
 
     # Prefer the email from render_auth_gate if render_sidebar returned empty
-    # (sidebar no longer collects email interactively).
     if not email and auth_email:
         email = auth_email
+
+    # ── Only show hero, CTA, and sample report when authenticated ──
+    if not (is_authenticated() and auth_email):
+        # Unauthenticated: show a clean teaser without CTA or sample report
+        st.markdown(
+            """
+            <div style="max-width:640px; margin:2rem auto 0; text-align:center;">
+                <h2 style="font-size:1.5rem; margin-bottom:0.5rem;">
+                    AI-Powered NSE Stock Research
+                </h2>
+                <p style="opacity:0.7; font-size:0.95rem; line-height:1.5;">
+                    Five-agent equity research with fundamentals, technicals,
+                    sentiment analysis, risk scoring, and a coordinated verdict —
+                    all in one clean report.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        render_footer(email)
+        render_main_sign_out()
+        return
+
     page_header(
         APP_TITLE,
         "Five-agent equity research for NSE stocks with fundamentals, technicals, sentiment, risk, and a coordinated verdict.",
