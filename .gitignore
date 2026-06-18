@@ -10,3 +10,6 @@ outputs/
 .DS_Store
 .codegraph/
 .coverage
+.streamlit/secrets.toml
+logs/
+.pytest_cache/

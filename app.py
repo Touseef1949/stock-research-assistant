@@ -96,6 +96,7 @@ from services.market_data import (
     _current_price_from_web_sources,
     _current_price_from_web_search,
 )
+from services.error_logging import log_error
 
 
 def inline_markdown_to_html(text: str) -> str:
@@ -3843,6 +3844,9 @@ def main() -> None:
                 wit_placeholder.empty()
             if "progress_shell" in locals():
                 progress_shell.empty()
+
+            log_error("main/run_analysis", str(exc), data={"symbol": symbol}, exc=exc)
+
             if is_rate_limit_error(exc):
                 st.error(
                     "All data sources (Yahoo Finance, Screener.in, and web price feeds) "

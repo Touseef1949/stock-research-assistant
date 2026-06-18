@@ -1,0 +1,61 @@
+name: Test & Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          python -m pytest tests/ -q --tb=short \
+            --cov=. --cov-report=term-missing:skip-covered \
+            -k "not slow" \
+            --timeout=120
+
+      - name: Coverage gate (≥90%)
+        run: |
+          python -m pytest tests/ -q \
+            --cov=. --cov-report=json \
+            -k "not slow" \
+            --timeout=120
+          python -c "
+          import json
+          with open('coverage.json') as f:
+              data = json.load(f)
+          total = data['totals']['percent_covered']
+          print(f'Coverage: {total:.1f}%')
+          assert total >= 90.0, f'Coverage {total:.1f}% below 90% gate'
+          print('Coverage gate passed')
+          "
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
