@@ -21,6 +21,8 @@ from logic import (
     verdict_for_score,
     parse_score,
     resolve_ticker,
+    suggest_tickers,
+    ticker_not_found_message,
     _normalize_query,
     _search_yfinance,
     _validate_ticker,
@@ -334,6 +336,7 @@ def test_resolve_ticker_garbage_returns_unknown(monkeypatch):
         "resolve_from_symbol_master",
         lambda text: {"symbol": "", "name": "", "source": "unknown"},
     )
+    monkeypatch.setattr(logic, "suggest_from_symbol_master", lambda text, limit=3, refresh=False: [])
     monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
     monkeypatch.setattr(
         logic,
@@ -345,6 +348,40 @@ def test_resolve_ticker_garbage_returns_unknown(monkeypatch):
 
     assert result["symbol"] == ""
     assert result["source"] == "unknown"
+
+
+def test_suggest_tickers_prefers_symbol_master(monkeypatch):
+    monkeypatch.setattr(
+        logic,
+        "suggest_from_symbol_master",
+        lambda text, limit=3, refresh=False: [
+            {"symbol": "EIEL.NS", "name": "Enviro Infra Engineers Limited", "source": "symbol_master_suggest_symbol"},
+            {"symbol": "E2E.NS", "name": "Example Two", "source": "symbol_master_suggest_name"},
+        ],
+    )
+    monkeypatch.setattr(logic, "search_quotes", lambda query: [])
+
+    result = suggest_tickers("EIEL Limited")
+
+    assert result[0]["symbol"] == "EIEL.NS"
+    assert result[0]["name"] == "Enviro Infra Engineers Limited"
+
+
+def test_ticker_not_found_message_includes_suggestions(monkeypatch):
+    monkeypatch.setattr(
+        logic,
+        "suggest_tickers",
+        lambda text, limit=3: [
+            {"symbol": "EIEL.NS", "name": "Enviro Infra Engineers Limited", "source": "symbol_master_suggest_symbol"},
+            {"symbol": "E2E.NS", "name": "Example Two", "source": "symbol_master_suggest_name"},
+        ],
+    )
+
+    msg = ticker_not_found_message("EIEL Limited")
+
+    assert "Did you mean:" in msg
+    assert "EIEL (Enviro Infra Engineers Limited)" in msg
+    assert "E2E (Example Two)" in msg
 
 
 @pytest.mark.skip(reason="requires yfinance API — may be rate limited in CI")

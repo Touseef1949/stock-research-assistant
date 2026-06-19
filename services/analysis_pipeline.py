@@ -14,6 +14,7 @@ from logic import (
     parse_score,
     pct,
     resolve_ticker,
+    ticker_not_found_message,
     verdict_for_score,
 )
 from services.market_data import load_market_data
@@ -329,10 +330,7 @@ def run_analysis(
         resolved = resolve_ticker(symbol)
     nse_symbol = resolved["symbol"]
     if not nse_symbol:
-        raise ValueError(
-            f"We couldn't find a listed NSE ticker for '{symbol}'. "
-            "Try the exact symbol (e.g. INFY) or a clearer company name."
-        )
+        raise ValueError(ticker_not_found_message(symbol))
 
     try:
         data = load_market_data(nse_symbol)

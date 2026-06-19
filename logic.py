@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from services.symbol_master import resolve_from_symbol_master
+from services.symbol_master import resolve_from_symbol_master, suggest_from_symbol_master
 from yf_client import YFinanceRateLimitError, search_quotes, ticker_history, ticker_info
 
 try:
@@ -303,6 +303,67 @@ def _search_yfinance(query: str) -> dict[str, str]:
         name = str(quote.get("longname") or quote.get("shortname") or quote.get("name") or "")
         return _ticker_result(symbol, "search", name)
     return {"symbol": "", "name": "", "source": "unknown"}
+
+
+def suggest_tickers(text: str, limit: int = 3) -> list[dict[str, str]]:
+    """Return top ticker suggestions for unresolved queries."""
+    suggestions = suggest_from_symbol_master(text, limit=limit, refresh=False)
+    if suggestions:
+        return suggestions
+
+    # Fall back to live quote search suggestions only when the local master has nothing.
+    query = str(text or "").strip()
+    if not query:
+        return []
+    try:
+        quotes = search_quotes(query)
+    except Exception:
+        return []
+
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for quote in quotes:
+        symbol = str(quote.get("symbol", "")).upper().strip()
+        exchange = str(quote.get("exchange", "")).upper()
+        if not symbol:
+            continue
+        if symbol.endswith(".BO"):
+            base = symbol[:-3]
+            if base.isdigit():
+                continue
+            symbol = f"{base}.NS"
+        elif symbol.endswith(".NS"):
+            pass
+        elif exchange in {"NSE", "NSI"}:
+            symbol = f"{_normalize_query(symbol)}.NS"
+        else:
+            continue
+        if symbol in seen:
+            continue
+        seen.add(symbol)
+        out.append({
+            "symbol": symbol,
+            "name": str(quote.get("longname") or quote.get("shortname") or quote.get("name") or symbol.replace('.NS', '')),
+            "source": "search_suggest",
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def ticker_not_found_message(text: str, limit: int = 3) -> str:
+    base = (
+        f"We couldn't find a listed NSE ticker for '{text}'. "
+        "Try the exact symbol (e.g. INFY) or a clearer company name."
+    )
+    suggestions = suggest_tickers(text, limit=limit)
+    if not suggestions:
+        return base
+    pretty = "; ".join(
+        f"{item['symbol'].replace('.NS', '')} ({item['name']})"
+        for item in suggestions
+    )
+    return f"{base} Did you mean: {pretty}?"
 
 
 def to_nse_symbol(symbol: str) -> str:

@@ -18,6 +18,8 @@ import streamlit_shadcn_ui as ui
 
 from logic import (
     resolve_ticker,
+    suggest_tickers,
+    ticker_not_found_message,
     to_nse_symbol,
     display_symbol,
     clamp_score,
@@ -2638,6 +2640,15 @@ def render_research_setup() -> str:
         label_visibility="collapsed",
     ).strip()
 
+    if symbol and len(symbol) >= 2:
+        suggestions = suggest_tickers(symbol, limit=3)
+        resolved_preview = resolve_ticker(symbol)
+        if not resolved_preview.get("symbol") and suggestions:
+            st.caption(
+                "Did you mean: "
+                + ", ".join(f"{item['symbol'].replace('.NS', '')} ({item['name']})" for item in suggestions)
+            )
+
     # ── Quick-pick row (horizontal on desktop, scrollable on mobile) ──
     qp_cols = st.columns(len(QUICK_PICKS))
     for col, (quick_symbol, name) in zip(qp_cols, QUICK_PICKS.items()):
@@ -3813,10 +3824,7 @@ def main() -> None:
             resolved = resolve_ticker(symbol)
             nse_symbol = resolved["symbol"]
             if not nse_symbol:
-                raise ValueError(
-                    f"We couldn't find a listed NSE ticker for '{symbol}'. "
-                    "Try the exact symbol (e.g. INFY) or a clearer company name."
-                )
+                raise ValueError(ticker_not_found_message(symbol))
             progress_shell.empty()
             with progress_shell.container():
                 render_analysis_progress_shell("Resolving ticker")

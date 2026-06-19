@@ -137,6 +137,22 @@ def test_symbol_master_garbage_stays_unresolved(tmp_path):
     assert result["source"] == "unknown"
 
 
+def test_symbol_master_suggestions_include_best_matches(tmp_path):
+    cache_path = tmp_path / "symbol_master_nse.json"
+    _write_cache(cache_path)
+
+    suggestions = symbol_master.suggest_from_symbol_master(
+        "EIEL Limited",
+        cache_path=cache_path,
+        refresh=False,
+        limit=3,
+    )
+
+    assert suggestions
+    assert suggestions[0]["symbol"] == "EIEL.NS"
+    assert suggestions[0]["name"] == "Enviro Infra Engineers Limited"
+
+
 def test_resolve_ticker_uses_symbol_master_before_yfinance(monkeypatch):
     monkeypatch.setattr(
         logic,

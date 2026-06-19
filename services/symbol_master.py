@@ -278,6 +278,67 @@ def _resolve_record(record: dict[str, Any], source: str) -> dict[str, str]:
     return _ticker_result(str(record.get("symbol", "")).strip().upper(), str(record.get("name", "")).strip(), source)
 
 
+def suggest_from_symbol_master(
+    text: str,
+    limit: int = 3,
+    cache_path: Path = CACHE_PATH,
+    refresh: bool = True,
+) -> list[dict[str, str]]:
+    """Return top likely symbol suggestions from the cached NSE master."""
+    query = str(text or "").strip()
+    normalized = normalize_key(query)
+    stripped = stripped_name_key(query)
+    if not normalized:
+        return []
+
+    data = load_symbol_master(cache_path=cache_path, refresh=refresh)
+    if not data:
+        return []
+
+    indexes = _build_indexes(data)
+    scored: dict[str, tuple[float, dict[str, Any], str]] = {}
+
+    def consider(record: dict[str, Any], score: float, source: str) -> None:
+        symbol = str(record.get("symbol", "")).strip().upper()
+        if not symbol:
+            return
+        prev = scored.get(symbol)
+        if prev is None or score > prev[0]:
+            scored[symbol] = (score, record, source)
+
+    # Exact-ish suggestions first.
+    for key, record in indexes["symbol"].items():
+        score = 0.0
+        if key == normalized:
+            score = 1.0
+        elif key.startswith(normalized) or normalized.startswith(key):
+            score = 0.96
+        else:
+            score = difflib.SequenceMatcher(None, normalized, key).ratio()
+        if score >= 0.75:
+            consider(record, score, "symbol")
+
+    for key, record in indexes["name"].items():
+        score = 1.0 if key == normalized else difflib.SequenceMatcher(None, normalized, key).ratio()
+        if score >= 0.70:
+            consider(record, score, "name")
+
+    for key, record in indexes["stripped"].items():
+        score = 1.0 if key == stripped else difflib.SequenceMatcher(None, stripped, key).ratio()
+        if score >= 0.70:
+            consider(record, score, "stripped")
+
+    ranked = sorted(scored.values(), key=lambda item: (-item[0], str(item[1].get("symbol", ""))))[: max(1, limit)]
+    return [
+        {
+            "symbol": f"{str(record.get('symbol', '')).strip().upper()}.NS",
+            "name": str(record.get("name", "")).strip(),
+            "source": f"symbol_master_suggest_{source}",
+        }
+        for _score, record, source in ranked
+    ]
+
+
 def resolve_from_symbol_master(
     text: str,
     cache_path: Path = CACHE_PATH,
