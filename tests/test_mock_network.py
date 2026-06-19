@@ -7,6 +7,7 @@ Uses pytest monkeypatch and unittest.mock to avoid real network calls.
 """
 
 import json
+import time
 from io import BytesIO
 from unittest.mock import MagicMock, patch, PropertyMock
 
@@ -789,3 +790,93 @@ def test_run_agent_pipeline_with_mock_agents(monkeypatch):
     assert "agent_outputs" in result
     # All 4 dimensions + Coordinator should be present
     assert len(result["agent_outputs"]) >= 4
+
+
+def test_run_agent_pipeline_limits_web_tools_to_sentiment_and_risk(monkeypatch):
+    """Fundamentals/Technicals should avoid DDG latency; Sentiment/Risk may browse."""
+    from services.analysis_pipeline import run_agent_pipeline
+
+    created = []
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            created.append(self)
+
+        def run(self, prompt, dependencies=None):
+            if self.kwargs.get("name") == "Coordinator":
+                return MagicMock(content="Final summary")
+            return MagicMock(content="SCORE: 7.5/10\nMock analysis")
+
+    monkeypatch.setattr("services.analysis_pipeline.Agent", FakeAgent)
+    monkeypatch.setattr("services.analysis_pipeline.DeepSeek", lambda **kw: MagicMock())
+    monkeypatch.setattr("services.analysis_pipeline.DuckDuckGoTools", lambda: "ddg")
+
+    data = {
+        "symbol": "SBIN.NS",
+        "base_symbol": "SBIN",
+        "name": "SBI",
+        "price": 780.0,
+        "change": 5.0,
+        "change_pct": 0.65,
+        "fundamentals": {"trailing_pe": 12.5, "roe": 0.15, "debt_to_equity": 90,
+                         "revenue_growth": 0.09, "beta": 0.95},
+        "technicals": {"trend": "Bullish", "rsi": 58, "macd": 3.2, "macd_signal": 2.1,
+                       "return_1y_pct": 18.5, "max_drawdown_pct": 22, "volatility_60d_pct": 28,
+                       "ema20": 770, "ema50": 745, "support": 720, "resistance": 820},
+        "history": pd.DataFrame(),
+        "info": {"longName": "State Bank of India"},
+        "as_of": "16 Jun 2026",
+        "source": "yfinance",
+    }
+
+    run_agent_pipeline("fake-api-key", "SBIN.NS", data)
+
+    by_name = {agent.kwargs.get("name"): agent.kwargs for agent in created}
+    assert by_name["Fundamentals"]["tools"] == []
+    assert by_name["Technicals"]["tools"] == []
+    assert by_name["Sentiment"]["tools"] == ["ddg"]
+    assert by_name["Risk"]["tools"] == ["ddg"]
+
+
+def test_run_agent_pipeline_parallelizes_first_three_stages(monkeypatch):
+    """Fundamentals/Technicals/Sentiment should run concurrently, not serially."""
+    import services.analysis_pipeline as ap
+
+    monkeypatch.setattr(ap, "Agent", lambda **kw: object())
+    monkeypatch.setattr(ap, "DeepSeek", lambda **kw: MagicMock())
+    monkeypatch.setattr(ap, "DuckDuckGoTools", lambda: "ddg")
+
+    def fake_agent_or_fallback(name, agent, prompt, data, dependencies):
+        time.sleep(0.25)
+        return ap.AgentResult(name=name, content="SCORE: 7.5/10\nMock", score=7.5, source="agent")
+
+    monkeypatch.setattr(ap, "agent_or_fallback", fake_agent_or_fallback)
+    monkeypatch.setattr(ap, "run_agent", lambda agent, prompt, dependencies: "Final summary")
+
+    data = {
+        "symbol": "SBIN.NS",
+        "base_symbol": "SBIN",
+        "name": "SBI",
+        "price": 780.0,
+        "change": 5.0,
+        "change_pct": 0.65,
+        "fundamentals": {"trailing_pe": 12.5, "roe": 0.15, "debt_to_equity": 90,
+                         "revenue_growth": 0.09, "beta": 0.95},
+        "technicals": {"trend": "Bullish", "rsi": 58, "macd": 3.2, "macd_signal": 2.1,
+                       "return_1y_pct": 18.5, "max_drawdown_pct": 22, "volatility_60d_pct": 28,
+                       "ema20": 770, "ema50": 745, "support": 720, "resistance": 820},
+        "history": pd.DataFrame(),
+        "info": {"longName": "State Bank of India"},
+        "as_of": "16 Jun 2026",
+        "source": "yfinance",
+    }
+
+    start = time.perf_counter()
+    result = ap.run_agent_pipeline("fake-api-key", "SBIN.NS", data)
+    elapsed = time.perf_counter() - start
+
+    assert result["mode"] == "agent"
+    # Serial old path would be ~1.0s here (4 x 0.25s before coordinator).
+    # Parallelized path should land materially below that.
+    assert elapsed < 0.8, f"expected parallel execution under 0.8s, got {elapsed:.2f}s"

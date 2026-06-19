@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Callable
 
@@ -133,7 +134,7 @@ def run_agent_pipeline(
     model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
     # Avoid YFinanceTools here: it makes extra yfinance calls that can trigger
     # Yahoo rate limits on shared cloud IPs. We already pass full market context.
-    news_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
+    research_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
     # When Yahoo Finance is rate-limited, use Screener fundamentals + web search.
     if data.get("source") == "screener_fallback":
         market_context = f"""
@@ -166,28 +167,28 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
         "Fundamentals": Agent(
             name="Fundamentals",
             model=model,
-            tools=news_tools,
+            tools=[],
             instructions=shared_instructions
-            + ["Score valuation, quality, growth, profitability, and balance sheet strength. Use web search if key metrics are missing."],
+            + ["Score valuation, quality, growth, profitability, and balance sheet strength from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says data is missing."],
         ),
         "Technicals": Agent(
             name="Technicals",
             model=model,
-            tools=news_tools,
+            tools=[],
             instructions=shared_instructions
-            + ["Score trend, momentum, levels, volume, and price action. Use web search for recent chart and news context when price history is unavailable."],
+            + ["Score trend, momentum, levels, volume, and price action from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says price history is unavailable."],
         ),
         "Sentiment": Agent(
             name="Sentiment",
             model=model,
-            tools=news_tools,
+            tools=research_tools,
             instructions=shared_instructions
             + ["Score recent company and sector news sentiment. Mention uncertainty when news is thin."],
         ),
         "Risk": Agent(
             name="Risk",
             model=model,
-            tools=news_tools,
+            tools=research_tools,
             instructions=shared_instructions
             + ["Score risk where a higher score means lower risk and better risk/reward."],
         ),
@@ -209,10 +210,21 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
     }
 
     outputs: dict[str, AgentResult] = {}
-    for name, prompt in prompts.items():
-        if progress_callback:
-            progress_callback(50, f"Running {name} analysis...")
-        outputs[name] = agent_or_fallback(name, agents[name], prompt, data, dependencies)
+    if progress_callback:
+        progress_callback(50, "Running AI analysis...")
+
+    with ThreadPoolExecutor(max_workers=len(prompts)) as executor:
+        futures = {
+            executor.submit(agent_or_fallback, name, agents[name], prompt, data, dependencies): name
+            for name, prompt in prompts.items()
+        }
+        completed: dict[str, AgentResult] = {}
+        for future in as_completed(futures):
+            name = futures[future]
+            completed[name] = future.result()
+
+    for name in prompts:
+        outputs[name] = completed[name]
 
     if progress_callback:
         progress_callback(70, "Assessing risk...")
