@@ -792,8 +792,8 @@ def test_run_agent_pipeline_with_mock_agents(monkeypatch):
     assert len(result["agent_outputs"]) >= 4
 
 
-def test_run_agent_pipeline_limits_web_tools_to_sentiment_and_risk(monkeypatch):
-    """Fundamentals/Technicals should avoid DDG latency; Sentiment/Risk may browse."""
+def test_run_agent_pipeline_uses_no_web_tools_in_quick_report_mode(monkeypatch):
+    """Quick reports should avoid DDG latency across all analysis agents."""
     from services.analysis_pipeline import run_agent_pipeline
 
     created = []
@@ -835,8 +835,8 @@ def test_run_agent_pipeline_limits_web_tools_to_sentiment_and_risk(monkeypatch):
     by_name = {agent.kwargs.get("name"): agent.kwargs for agent in created}
     assert by_name["Fundamentals"]["tools"] == []
     assert by_name["Technicals"]["tools"] == []
-    assert by_name["Sentiment"]["tools"] == ["ddg"]
-    assert by_name["Risk"]["tools"] == ["ddg"]
+    assert by_name["Sentiment"]["tools"] == []
+    assert by_name["Risk"]["tools"] == []
 
 
 def test_run_agent_pipeline_parallelizes_first_three_stages(monkeypatch):

@@ -132,9 +132,10 @@ def run_agent_pipeline(
         return run_local_pipeline(data, "Agno is not installed or could not be imported.")
 
     model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
-    # Avoid YFinanceTools here: it makes extra yfinance calls that can trigger
-    # Yahoo rate limits on shared cloud IPs. We already pass full market context.
-    research_tools = [DuckDuckGoTools()] if DuckDuckGoTools else []
+    # Quick report mode: keep the pipeline fast and deterministic.
+    # Live web/news tools caused repeated no-result retries that dominated latency
+    # on cloud deployments, so this path relies on the supplied market context only.
+    research_tools: list[Any] = []
     # When Yahoo Finance is rate-limited, use Screener fundamentals + web search.
     if data.get("source") == "screener_fallback":
         market_context = f"""
@@ -183,14 +184,14 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
             model=model,
             tools=research_tools,
             instructions=shared_instructions
-            + ["Score recent company and sector news sentiment. Mention uncertainty when news is thin."],
+            + ["Score sentiment from the provided context and recent price/momentum proxies only. Be explicit that quick-report mode does not fetch live news."],
         ),
         "Risk": Agent(
             name="Risk",
             model=model,
             tools=research_tools,
             instructions=shared_instructions
-            + ["Score risk where a higher score means lower risk and better risk/reward."],
+            + ["Score risk where a higher score means lower risk and better risk/reward. Use only the supplied context and prior agent outputs; quick-report mode does not browse the web."],
         ),
         "Coordinator": Agent(
             name="Coordinator",
