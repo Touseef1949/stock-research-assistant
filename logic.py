@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from services.symbol_master import resolve_from_symbol_master
 from yf_client import YFinanceRateLimitError, search_quotes, ticker_history, ticker_info
 
 try:
@@ -329,6 +330,10 @@ def resolve_ticker(text: str) -> dict[str, str]:
     mapped = KNOWN_TICKERS.get(normalized)
     if mapped:
         return _ticker_result(mapped, "map")
+
+    master_result = resolve_from_symbol_master(text)
+    if master_result.get("symbol"):
+        return master_result
 
     if re.fullmatch(r"[A-Z0-9]{1,20}", normalized):
         candidate = f"{normalized}.NS"

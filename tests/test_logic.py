@@ -329,6 +329,11 @@ def test_search_yfinance_skips_numeric_bse(monkeypatch):
 
 def test_resolve_ticker_garbage_returns_unknown(monkeypatch):
     """Garbage input must return empty symbol, not a bogus .NS fallback."""
+    monkeypatch.setattr(
+        logic,
+        "resolve_from_symbol_master",
+        lambda text: {"symbol": "", "name": "", "source": "unknown"},
+    )
     monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
     monkeypatch.setattr(
         logic,
