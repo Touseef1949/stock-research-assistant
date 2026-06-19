@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import pandas as pd
 
-from yf_client import search_quotes, ticker_history, ticker_info
+from yf_client import YFinanceRateLimitError, search_quotes, ticker_history, ticker_info
 
 try:
     import yfinance as yf
@@ -120,6 +120,116 @@ KNOWN_TICKERS = {
     "NTPCLTD": "NTPC.NS",
     "COALINDIA": "COALINDIA.NS",
     "COALINDIALTD": "COALINDIA.NS",
+    # Additional commonly searched NSE names and aliases.
+    "TATASTEEL": "TATASTEEL.NS",
+    "TATASTEELLTD": "TATASTEEL.NS",
+    "HDFCLIFE": "HDFCLIFE.NS",
+    "HDFCLIFELTD": "HDFCLIFE.NS",
+    "NALCO": "NATIONALUM.NS",
+    "NATIONALALUMINIUM": "NATIONALUM.NS",
+    "NATIONALUM": "NATIONALUM.NS",
+    "SUPRIYA": "SUPRIYA.NS",
+    "SUPRIYALIFESCIENCE": "SUPRIYA.NS",
+    "AVANTIFEED": "AVANTIFEED.NS",
+    "AVANTIFEEDS": "AVANTIFEED.NS",
+    "EICHERMOT": "EICHERMOT.NS",
+    "EICHERMOTORS": "EICHERMOT.NS",
+    "BAJAJFINSV": "BAJAJFINSV.NS",
+    "BAJAJFINANCEANDINSURANCE": "BAJAJFINSV.NS",
+    "DIVISLAB": "DIVISLAB.NS",
+    "DIVISLABORATORIES": "DIVISLAB.NS",
+    "PIDILITIND": "PIDILITIND.NS",
+    "PIDILITINDUSTRIES": "PIDILITIND.NS",
+    "PIDILITEINDUSTRIES": "PIDILITIND.NS",
+    "SIEMENS": "SIEMENS.NS",
+    "SIEMENSINDIA": "SIEMENS.NS",
+    "DABUR": "DABUR.NS",
+    "DABURINDIA": "DABUR.NS",
+    "GODREJCP": "GODREJCP.NS",
+    "GODREJCONSUMER": "GODREJCP.NS",
+    "MARICO": "MARICO.NS",
+    "MARICOLTD": "MARICO.NS",
+    "BERGERPAINT": "BERGEPAINT.NS",
+    "BERGERPAINTS": "BERGEPAINT.NS",
+    "MUTHOOTFIN": "MUTHOOTFIN.NS",
+    "MUTHOOTFINANCE": "MUTHOOTFIN.NS",
+    "CHOLAFIN": "CHOLAFIN.NS",
+    "CHOLAFINANCE": "CHOLAFIN.NS",
+    "PFC": "PFC.NS",
+    "POWERFINANCE": "PFC.NS",
+    "REC": "RECLTD.NS",
+    "RECLTD": "RECLTD.NS",
+    "GAIL": "GAIL.NS",
+    "GAILINDIA": "GAIL.NS",
+    "BPCL": "BPCL.NS",
+    "BHARATPETROLEUM": "BPCL.NS",
+    "IOC": "IOC.NS",
+    "INDIANOIL": "IOC.NS",
+    "VEDL": "VEDL.NS",
+    "VEDANTA": "VEDL.NS",
+    "HINDALCO": "HINDALCO.NS",
+    "HINDALCOINDUSTRIES": "HINDALCO.NS",
+    "JINDALSTEL": "JINDALSTEL.NS",
+    "JINDALSTEELANDPOWER": "JINDALSTEL.NS",
+    "SAIL": "SAIL.NS",
+    "STEELAUTHORITYOFINDIA": "SAIL.NS",
+    "UPL": "UPL.NS",
+    "UPLLTD": "UPL.NS",
+    "PIIND": "PIIND.NS",
+    "PIINDUSTRIES": "PIIND.NS",
+    "BANDHANBNK": "BANDHANBNK.NS",
+    "BANDHANBANK": "BANDHANBNK.NS",
+    "FEDERALBNK": "FEDERALBNK.NS",
+    "FEDERALBANK": "FEDERALBNK.NS",
+    "IDFCFIRSTB": "IDFCFIRSTB.NS",
+    "IDFCFIRSTBANK": "IDFCFIRSTB.NS",
+    "RBLBANK": "RBLBANK.NS",
+    "RBLBANKLTD": "RBLBANK.NS",
+    "INDUSINDBK": "INDUSINDBK.NS",
+    "INDUSIND": "INDUSINDBK.NS",
+    "AMBUJACEM": "AMBUJACEM.NS",
+    "AMBUJACEMENTS": "AMBUJACEM.NS",
+    "GRASIM": "GRASIM.NS",
+    "GRASIMINDUSTRIES": "GRASIM.NS",
+    "SHREECEM": "SHREECEM.NS",
+    "SHREECEMENT": "SHREECEM.NS",
+    "ACC": "ACC.NS",
+    "ACCLTD": "ACC.NS",
+    "BAJAJHLDNG": "BAJAJHLDNG.NS",
+    "BAJAJHOLDINGS": "BAJAJHLDNG.NS",
+    "MAHINDRA": "M&M.NS",
+    "MAHINDRAMAHINDRA": "M&M.NS",
+    "HEROMOTOCO": "HEROMOTOCO.NS",
+    "HEROMOTORS": "HEROMOTOCO.NS",
+    "BOSCHLTD": "BOSCHLTD.NS",
+    "BOSCH": "BOSCHLTD.NS",
+    "UNITEDSPIRITS": "MCDOWELL-N.NS",
+    "CONCOR": "CONCOR.NS",
+    "CONTAINERCORPORATION": "CONCOR.NS",
+    "NHPC": "NHPC.NS",
+    "NHPCLTD": "NHPC.NS",
+    "SJVN": "SJVN.NS",
+    "SJVNLTD": "SJVN.NS",
+    "IRCTC": "IRCTC.NS",
+    "IRCTCLTD": "IRCTC.NS",
+    "INDHOTEL": "INDHOTEL.NS",
+    "INDIANHOTELS": "INDHOTEL.NS",
+    "FORTIS": "FORTIS.NS",
+    "FORTISHEALTHCARE": "FORTIS.NS",
+    "APOLLOHOSP": "APOLLOHOSP.NS",
+    "APOLLOHOSPITALS": "APOLLOHOSP.NS",
+    "MAXHEALTH": "MAXHEALTH.NS",
+    "MAXHEALTHCARE": "MAXHEALTH.NS",
+    "LALPATHLAB": "LALPATHLAB.NS",
+    "DRLALPATHLABS": "LALPATHLAB.NS",
+    "METROPOLIS": "METROPOLIS.NS",
+    "METROPOLISHEALTHCARE": "METROPOLIS.NS",
+}
+
+
+SPECIAL_TICKERS = {
+    "MM": "M&M.NS",
+    "MCDOWELLN": "MCDOWELL-N.NS",
 }
 
 
@@ -137,6 +247,8 @@ def _validate_ticker(symbol: str) -> bool:
     try:
         history = ticker_history(symbol, period="5d")
         return history is not None and not history.empty
+    except YFinanceRateLimitError:
+        return True
     except Exception:
         return False
 
@@ -156,18 +268,24 @@ def _search_yfinance(query: str) -> dict[str, str]:
             return 3
         if exchange in {"NSE", "NSI"}:
             return 2
+        if symbol.endswith(".BO") or exchange == "BSE":
+            return 1
         return 0
 
     for quote in sorted(quotes, key=score, reverse=True):
         symbol = str(quote.get("symbol", "")).upper().strip()
         if not symbol:
             continue
+        quote_score = score(quote)
+        if quote_score < 1:
+            continue
         exchange = str(quote.get("exchange", "")).upper()
-        if symbol.endswith(".NS") or exchange in {"NSE", "NSI"}:
-            if not symbol.endswith(".NS"):
-                symbol = f"{_normalize_query(symbol)}.NS"
-            name = str(quote.get("longname") or quote.get("shortname") or quote.get("name") or "")
-            return _ticker_result(symbol, "search", name)
+        if symbol.endswith(".BO"):
+            symbol = f"{symbol[:-3]}.NS"
+        elif not symbol.endswith(".NS") and exchange in {"NSE", "NSI", "BSE"}:
+            symbol = f"{_normalize_query(symbol)}.NS"
+        name = str(quote.get("longname") or quote.get("shortname") or quote.get("name") or "")
+        return _ticker_result(symbol, "search", name)
     return {"symbol": "", "name": "", "source": "unknown"}
 
 
@@ -185,16 +303,28 @@ def resolve_ticker(text: str) -> dict[str, str]:
     if not normalized:
         return {"symbol": "", "name": "", "source": "unknown"}
 
+    special = SPECIAL_TICKERS.get(normalized)
+    if special:
+        return _ticker_result(special, "special")
+
+    # Check known mappings BEFORE direct validation — the map has the correct
+    # NSE ticker (e.g. NATIONALALUMINIUM → NATIONALUM.NS, not NATIONALALUMINIUM.NS).
+    # Direct validation can return True optimistically on rate-limit, which would
+    # produce wrong symbols for company names that happen to look like tickers.
+    mapped = KNOWN_TICKERS.get(normalized)
+    if mapped:
+        return _ticker_result(mapped, "map")
+
     if re.fullmatch(r"[A-Z0-9]{1,20}", normalized):
         candidate = f"{normalized}.NS"
         if _validate_ticker(candidate):
             return _ticker_result(candidate, "direct")
 
-    mapped = KNOWN_TICKERS.get(normalized)
-    if mapped:
-        return _ticker_result(mapped, "map")
+    result = _search_yfinance(str(text or "").strip())
+    if result.get("symbol"):
+        return result
 
-    return _search_yfinance(str(text or "").strip())
+    return _ticker_result(f"{normalized}.NS", "fallback")
 
 
 def display_symbol(nse_symbol: str) -> str:

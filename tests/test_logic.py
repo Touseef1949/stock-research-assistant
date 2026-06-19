@@ -5,6 +5,7 @@ Run: pytest tests/test_logic.py -v
 
 import pytest
 import pandas as pd
+import logic
 from logic import (
     to_nse_symbol,
     display_symbol,
@@ -21,7 +22,10 @@ from logic import (
     parse_score,
     resolve_ticker,
     _normalize_query,
+    _search_yfinance,
+    _validate_ticker,
 )
+from yf_client import YFinanceRateLimitError
 
 
 # ── to_nse_symbol ──
@@ -219,6 +223,77 @@ def test_resolve_ticker_empty():
     result = resolve_ticker("")
     assert result["symbol"] == ""
     assert result["source"] == "unknown"
+
+
+def test_search_yfinance_converts_bse_result_to_nse(monkeypatch):
+    def fake_search_quotes(query):
+        return [
+            {
+                "symbol": "TATASTEEL.BO",
+                "exchange": "BSE",
+                "shortname": "Tata Steel Limited",
+            }
+        ]
+
+    monkeypatch.setattr(logic, "search_quotes", fake_search_quotes)
+
+    result = _search_yfinance("Tata Steel")
+
+    assert result["symbol"] == "TATASTEEL.NS"
+    assert result["source"] == "search"
+    assert result["name"] == "Tata Steel Limited"
+
+
+def test_validate_ticker_returns_true_on_rate_limit(monkeypatch):
+    def fake_ticker_history(symbol, period="5d"):
+        raise YFinanceRateLimitError("Yahoo Finance rate limit exceeded")
+
+    monkeypatch.setattr(logic, "yf", object())
+    monkeypatch.setattr(logic, "ticker_history", fake_ticker_history)
+
+    assert _validate_ticker("TATASTEEL.NS") is True
+
+
+@pytest.mark.parametrize("inp,expected", [
+    ("Tata Steel", "TATASTEEL.NS"),
+    ("HDFC Life", "HDFCLIFE.NS"),
+    ("National Aluminium", "NATIONALUM.NS"),
+    ("Supriya Life Science", "SUPRIYA.NS"),
+    ("Avanti Feeds", "AVANTIFEED.NS"),
+    ("Eicher Motors", "EICHERMOT.NS"),
+    ("Bajaj Finance and Insurance", "BAJAJFINSV.NS"),
+    ("Divis Laboratories", "DIVISLAB.NS"),
+    ("Pidilite Industries", "PIDILITIND.NS"),
+    ("Power Finance", "PFC.NS"),
+    ("Indian Oil", "IOC.NS"),
+    ("Dr Lal Pathlabs", "LALPATHLAB.NS"),
+    ("Metropolis Healthcare", "METROPOLIS.NS"),
+])
+def test_resolve_ticker_new_known_tickers(monkeypatch, inp, expected):
+    monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
+    monkeypatch.setattr(
+        logic,
+        "_search_yfinance",
+        lambda query: {"symbol": "", "name": "", "source": "unknown"},
+    )
+
+    result = resolve_ticker(inp)
+
+    assert result["symbol"] == expected
+    assert result["source"] == "map"
+
+
+@pytest.mark.parametrize("inp,expected", [
+    ("M&M", "M&M.NS"),
+    ("MCDOWELL-N", "MCDOWELL-N.NS"),
+])
+def test_resolve_ticker_special_tickers(monkeypatch, inp, expected):
+    monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
+
+    result = resolve_ticker(inp)
+
+    assert result["symbol"] == expected
+    assert result["source"] == "special"
 
 
 @pytest.mark.skip(reason="requires yfinance API — may be rate limited in CI")
