@@ -130,6 +130,9 @@ KNOWN_TICKERS = {
     "NATIONALUM": "NATIONALUM.NS",
     "SUPRIYA": "SUPRIYA.NS",
     "SUPRIYALIFESCIENCE": "SUPRIYA.NS",
+    "ADVAIT": "ADVAIT.NS",
+    "ADVAITENERGY": "ADVAIT.NS",
+    "ADVAITENERGYTRANSITIONS": "ADVAIT.NS",
     "AVANTIFEED": "AVANTIFEED.NS",
     "AVANTIFEEDS": "AVANTIFEED.NS",
     "EICHERMOT": "EICHERMOT.NS",
@@ -229,7 +232,9 @@ KNOWN_TICKERS = {
 
 SPECIAL_TICKERS = {
     "MM": "M&M.NS",
+    "MMFIN": "M&MFIN.NS",
     "MCDOWELLN": "MCDOWELL-N.NS",
+    "BAJAJAUTO": "BAJAJ-AUTO.NS",
 }
 
 
@@ -248,7 +253,12 @@ def _validate_ticker(symbol: str) -> bool:
         history = ticker_history(symbol, period="5d")
         return history is not None and not history.empty
     except YFinanceRateLimitError:
-        return True
+        # Return False on rate-limit so resolution falls through to
+        # _search_yfinance (which may also be rate-limited, but at least
+        # we don't pass garbage tickers through as valid).
+        # The expanded KNOWN_TICKERS map (~160 entries) covers most
+        # common stocks, so this path is only for less-known tickers.
+        return False
     except Exception:
         return False
 
@@ -269,6 +279,11 @@ def _search_yfinance(query: str) -> dict[str, str]:
         if exchange in {"NSE", "NSI"}:
             return 2
         if symbol.endswith(".BO") or exchange == "BSE":
+            # Skip purely numeric BSE symbols (e.g. 500112.BO) — they don't
+            # map to the same numeric on NSE. Only convert alphabetic BSE tickers.
+            base = symbol[:-3] if symbol.endswith(".BO") else symbol
+            if base.isdigit():
+                return 0
             return 1
         return 0
 
@@ -324,7 +339,9 @@ def resolve_ticker(text: str) -> dict[str, str]:
     if result.get("symbol"):
         return result
 
-    return _ticker_result(f"{normalized}.NS", "fallback")
+    # No fallback — returning a bogus {normalized}.NS for garbage inputs
+    # causes confusing downstream errors. Let the caller show a clear message.
+    return {"symbol": "", "name": "", "source": "unknown"}
 
 
 def display_symbol(nse_symbol: str) -> str:

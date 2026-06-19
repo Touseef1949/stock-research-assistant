@@ -244,14 +244,14 @@ def test_search_yfinance_converts_bse_result_to_nse(monkeypatch):
     assert result["name"] == "Tata Steel Limited"
 
 
-def test_validate_ticker_returns_true_on_rate_limit(monkeypatch):
+def test_validate_ticker_returns_false_on_rate_limit(monkeypatch):
     def fake_ticker_history(symbol, period="5d"):
         raise YFinanceRateLimitError("Yahoo Finance rate limit exceeded")
 
     monkeypatch.setattr(logic, "yf", object())
     monkeypatch.setattr(logic, "ticker_history", fake_ticker_history)
 
-    assert _validate_ticker("TATASTEEL.NS") is True
+    assert _validate_ticker("TATASTEEL.NS") is False
 
 
 @pytest.mark.parametrize("inp,expected", [
@@ -259,6 +259,8 @@ def test_validate_ticker_returns_true_on_rate_limit(monkeypatch):
     ("HDFC Life", "HDFCLIFE.NS"),
     ("National Aluminium", "NATIONALUM.NS"),
     ("Supriya Life Science", "SUPRIYA.NS"),
+    ("Advait", "ADVAIT.NS"),
+    ("Avantifeeds", "AVANTIFEED.NS"),
     ("Avanti Feeds", "AVANTIFEED.NS"),
     ("Eicher Motors", "EICHERMOT.NS"),
     ("Bajaj Finance and Insurance", "BAJAJFINSV.NS"),
@@ -286,6 +288,10 @@ def test_resolve_ticker_new_known_tickers(monkeypatch, inp, expected):
 @pytest.mark.parametrize("inp,expected", [
     ("M&M", "M&M.NS"),
     ("MCDOWELL-N", "MCDOWELL-N.NS"),
+    ("M&MFIN", "M&MFIN.NS"),
+    ("BAJAJ-AUTO", "BAJAJ-AUTO.NS"),
+    ("BAJAJ AUTO", "BAJAJ-AUTO.NS"),
+    ("BAJAJAUTO", "BAJAJ-AUTO.NS"),
 ])
 def test_resolve_ticker_special_tickers(monkeypatch, inp, expected):
     monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
@@ -294,6 +300,46 @@ def test_resolve_ticker_special_tickers(monkeypatch, inp, expected):
 
     assert result["symbol"] == expected
     assert result["source"] == "special"
+
+
+def test_search_yfinance_skips_numeric_bse(monkeypatch):
+    """Numeric BSE symbols (e.g. 500112.BO) must NOT be converted to .NS."""
+    def fake_search_quotes(query):
+        return [
+            {
+                "symbol": "500112.BO",
+                "exchange": "BSE",
+                "shortname": "Some BSE only stock",
+            },
+            {
+                "symbol": "TATASTEEL.BO",
+                "exchange": "BSE",
+                "shortname": "Tata Steel Limited",
+            },
+        ]
+
+    monkeypatch.setattr(logic, "search_quotes", fake_search_quotes)
+
+    result = _search_yfinance("test")
+
+    # Should pick TATASTEEL.BO (alphabetic) and convert, skip 500112.BO (numeric)
+    assert result["symbol"] == "TATASTEEL.NS"
+    assert result["source"] == "search"
+
+
+def test_resolve_ticker_garbage_returns_unknown(monkeypatch):
+    """Garbage input must return empty symbol, not a bogus .NS fallback."""
+    monkeypatch.setattr(logic, "_validate_ticker", lambda symbol: False)
+    monkeypatch.setattr(
+        logic,
+        "_search_yfinance",
+        lambda query: {"symbol": "", "name": "", "source": "unknown"},
+    )
+
+    result = resolve_ticker("zzzxyznonexistent123")
+
+    assert result["symbol"] == ""
+    assert result["source"] == "unknown"
 
 
 @pytest.mark.skip(reason="requires yfinance API — may be rate limited in CI")
