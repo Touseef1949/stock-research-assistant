@@ -2682,19 +2682,7 @@ def render_sidebar_sign_out() -> None:
         return
 
     st.divider()
-    if st.button("Sign out", key="supabase_sign_out", use_container_width=True):
-        st.session_state.user_email = ""
-        st.session_state["_auth_verified"] = False
-        for key in ("_auth_verified", "_supabase_session", "_otp_sent", "_otp_email", "_email_input", "_otp_input"):
-            st.session_state.pop(key, None)
-        clear_auth()
-        client = get_supabase_client()
-        if client is not None:
-            try:
-                client.auth.sign_out()
-            except Exception:
-                pass
-        st.rerun()
+    st.button("Sign out", key="supabase_sign_out", use_container_width=True, on_click=_do_sign_out)
 
 
 def _do_sign_out() -> None:
@@ -2723,9 +2711,13 @@ def render_main_sign_out() -> None:
         return
 
     st.markdown("---")
-    if st.button("Sign out", key="main_sign_out", use_container_width=True):
-        _do_sign_out()
-        st.rerun()
+    st.button("Sign out", key="main_sign_out", use_container_width=True, on_click=_do_sign_out)
+
+
+def _theme_toggle_callback() -> None:
+    """Swap light/dark theme — runs BEFORE widget rendering."""
+    current = st.session_state.get("theme", "light")
+    st.session_state.theme = "light" if current == "dark" else "dark"
 
 
 def render_sidebar() -> tuple[str, str]:
@@ -2744,9 +2736,9 @@ def render_sidebar() -> tuple[str, str]:
             key="theme_toggle",
             use_container_width=True,
             type="secondary",
+            on_click=_theme_toggle_callback,
         ):
-            st.session_state.theme = "light" if current_theme == "dark" else "dark"
-            st.rerun()
+            pass  # handled by callback, auto-reruns
 
         # ── 1. Brand ──
         st.markdown(
