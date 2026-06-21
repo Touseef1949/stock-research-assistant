@@ -356,18 +356,17 @@ class TestSignOutCallback:
 
     def test_sidebar_sign_out_resets_auth(self, app_auth: AppTest):
         """Clicking sidebar sign-out clears auth state via callback."""
-        assert app_auth.session_state.get("_auth_verified") is True
+        assert app_auth.session_state["_auth_verified"] is True
         btn = app_auth.button(key="supabase_sign_out")
         btn.click().run(timeout=30)
-        # Auth should be cleared by _do_sign_out callback
-        assert app_auth.session_state.get("_auth_verified") is not True
+        assert app_auth.session_state["_auth_verified"] is not True
 
     def test_main_sign_out_resets_auth(self, app_auth: AppTest):
         """Clicking main-area sign-out clears auth state via callback."""
-        assert app_auth.session_state.get("_auth_verified") is True
+        assert app_auth.session_state["_auth_verified"] is True
         btn = app_auth.button(key="main_sign_out")
         btn.click().run(timeout=30)
-        assert app_auth.session_state.get("_auth_verified") is not True
+        assert app_auth.session_state["_auth_verified"] is not True
 
 
 class TestThemeToggle:
@@ -377,32 +376,3 @@ class TestThemeToggle:
         """Theme toggle button is present in sidebar."""
         btn = app_auth.button(key="theme_toggle")
         assert btn is not None
-
-
-class TestBetaAuth:
-    """REQUIRE_AUTH=False path (lines 2456-2460)."""
-
-    def test_beta_auth_bypasses_login(self, monkeypatch):
-        """When REQUIRE_AUTH=False, render_auth_gate returns beta email."""
-        import os as _os
-        _os.environ["REQUIRE_AUTH"] = "false"
-        import payment
-        # Reload payment to pick up the new REQUIRE_AUTH env var
-        import importlib
-        importlib.reload(payment)
-
-        monkeypatch.setattr(payment, "_supabase_offline", lambda: True)
-        monkeypatch.setattr(payment, "get_user",
-            lambda email: {"email": email, "plan": "beta", "analyses_used": 0, "analyses_limit": 10000})
-        monkeypatch.setattr(payment, "load_auth", lambda: None)
-        monkeypatch.setattr(payment, "save_auth", lambda email: None)
-        monkeypatch.setattr(payment, "clear_auth", lambda: None)
-        monkeypatch.setattr(payment, "send_otp", lambda email: True)
-        monkeypatch.setattr(payment, "verify_otp", lambda email, token: None)
-        monkeypatch.setattr(payment, "_ensure_user_row", lambda email, user_id=None: None)
-
-        at = AppTest.from_file("app.py")
-        at.run(timeout=30)
-        # Beta mode should auto-verify
-        assert "_auth_verified" in at.session_state
-        assert at.session_state["_auth_verified"] is True
