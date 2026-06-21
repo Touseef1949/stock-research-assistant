@@ -407,9 +407,12 @@ def test_build_peer_comparison_with_mock(monkeypatch):
 # ══════════════════════════════════════════════════════════
 
 def test_require_payment_not_authenticated(monkeypatch):
-    """require_payment returns False when user not authenticated."""
+    """require_payment returns False when user not authenticated (auth-required mode only)."""
     import streamlit as st
-    from payment import require_payment
+    from payment import require_payment, REQUIRE_AUTH
+
+    if not REQUIRE_AUTH:
+        pytest.skip("Beta mode — require_payment always allows")
 
     # Mock session state
     session = {}
@@ -425,10 +428,12 @@ def test_require_payment_not_authenticated(monkeypatch):
 
 
 def test_require_payment_pro_user_allowed(monkeypatch):
-    """Pro user with remaining reports should be allowed."""
+    """Pro user with remaining reports should be allowed (beta always allows)."""
     import streamlit as st
-    from payment import require_payment, TIER_LIMITS
+    from payment import require_payment, TIER_LIMITS, REQUIRE_AUTH
 
+    if not REQUIRE_AUTH:
+        pytest.skip("Beta mode — require_payment always allows")
     session = {"_auth_verified": True, "_session_report_count": 0}
     monkeypatch.setattr(st, "session_state", session)
     monkeypatch.setattr(st, "warning", lambda msg: None)
@@ -444,9 +449,12 @@ def test_require_payment_pro_user_allowed(monkeypatch):
 
 
 def test_require_payment_free_user_at_limit(monkeypatch):
-    """Free user at report limit should be blocked."""
+    """Free user at report limit should be blocked (beta always allows)."""
     import streamlit as st
-    from payment import require_payment, FREE_REPORT_LIMIT
+    from payment import require_payment, FREE_REPORT_LIMIT, REQUIRE_AUTH
+
+    if not REQUIRE_AUTH:
+        pytest.skip("Beta mode — require_payment always allows")
 
     session = {
         "_auth_verified": True,

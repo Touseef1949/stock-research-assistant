@@ -252,6 +252,8 @@ class TestRenderSidebarAccessCallsEnsureRow:
     def test_verify_otp_calls_ensure_user_row(self, monkeypatch):
         """After successful OTP verify, _ensure_user_row must be called."""
         import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — OTP verify flow is skipped")
         from streamlit.testing.v1 import AppTest
 
         calls = []

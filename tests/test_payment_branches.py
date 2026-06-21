@@ -222,6 +222,9 @@ class TestSupabaseClients:
 
 class TestGetUser:
     def test_get_user_empty_email_returns_mock(self):
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — get_user behavior differs")
         assert isinstance(get_user(""), _MockUser)
         assert isinstance(get_user(None), _MockUser)
 

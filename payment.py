@@ -28,6 +28,7 @@ APP_NAME = "Stock Research Assistant"
 AUTH_FILE = Path.home() / ".hermes" / "data" / "sra_auth.json"
 
 FREE_REPORT_LIMIT = 5
+REQUIRE_AUTH = False  # Feature flag: True = require email OTP. False = open beta.
 PRO_REPORT_LIMIT = 100
 INTERNAL_PRO_EMAILS = {"tshaik1990@gmail.com"}
 
@@ -369,6 +370,10 @@ def require_payment(email: str) -> bool:
     Call before running an analysis.
     Returns True if the authenticated user is allowed to proceed.
     """
+    if not REQUIRE_AUTH:
+        st.info("Free during beta")
+        return True
+
     clean_email = _normalize_email(email)
     if not clean_email:
         st.warning("Enter your email in the sidebar to start.")
@@ -577,6 +582,13 @@ def render_email_gate() -> str:
     Render the sidebar email OTP flow.
     Returns the verified email string for the existing app interface.
     """
+    if not REQUIRE_AUTH:
+        with st.sidebar:
+            st.markdown('<div class="sidebar-section-title">Access</div>', unsafe_allow_html=True)
+            st.success('Free during beta')
+            st.caption('No login required - open access')
+        return 'beta-user@sra.local'
+
     if "user_email" not in st.session_state:
         st.session_state.user_email = ""
     if "_auth_verified" not in st.session_state:
@@ -602,7 +614,9 @@ def render_email_gate() -> str:
             used = user.get("analyses_used", 0) if isinstance(user, dict) else st.session_state.get("_session_report_count", 0)
             limit = user.get("analyses_limit", TIER_LIMITS["free"]) if isinstance(user, dict) else TIER_LIMITS["free"]
             st.success(f"✓ Verified as {verified_email}")
-            if str(plan).lower() == "free":
+            if not REQUIRE_AUTH:
+                st.caption("Free during beta")
+            elif str(plan).lower() == "free":
                 st.caption(f"FREE plan - {used}/{limit} analyses used")
             else:
                 st.caption(f"{str(plan).upper()} plan - {used}/{limit} analyses used")
@@ -653,7 +667,10 @@ def render_email_gate() -> str:
                     limit = getattr(user, "analyses_limit", TIER_LIMITS["free"])
                 used = st.session_state.get("_session_report_count", 0)
                 st.success(f"Verified as {clean_email}")
-                st.caption(f"{str(plan).upper()} plan - {used}/{limit} analyses used")
+                if not REQUIRE_AUTH:
+                    st.caption("Free during beta")
+                else:
+                    st.caption(f"{str(plan).upper()} plan - {used}/{limit} analyses used")
             return st.session_state.user_email
 
         if st.button(

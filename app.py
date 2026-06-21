@@ -64,6 +64,7 @@ from payment import (
     is_authenticated,
     load_auth,
     require_payment,
+    REQUIRE_AUTH,
     save_auth,
     send_otp,
     track_usage,
@@ -2451,6 +2452,13 @@ def render_sidebar_access(interactive: bool = True) -> str:
     Verified state is guarded so that clicking the main "Generate Report" button
     (or any other sidebar interaction) does not accidentally reset authentication.
     """
+    if not REQUIRE_AUTH:
+        st.session_state.user_email = "beta-user@sra.local"
+        st.session_state["_auth_verified"] = True
+        st.success("Free during beta")
+        st.caption("No login required - open access")
+        return "beta-user@sra.local"
+
     if "user_email" not in st.session_state:
         st.session_state.user_email = ""
     if "_auth_verified" not in st.session_state:
@@ -2476,7 +2484,7 @@ def render_sidebar_access(interactive: bool = True) -> str:
 
     # ── Non-interactive mode: nothing more to render ──
     if not interactive:
-        st.caption("Sign in from the main page to start analysing stocks.")
+        st.caption("Free during beta" if not REQUIRE_AUTH else "Sign in from the main page to start analysing stocks.")
         return st.session_state.user_email if is_authenticated() else ""
 
     # ── 3. Offline / dev-mode bypass ──
@@ -2573,6 +2581,11 @@ def render_auth_gate() -> str:
     This replaces the old sidebar-based auth for mobile friendliness.
     Returns the verified email string (empty if not yet authenticated).
     """
+    if not REQUIRE_AUTH:
+        st.session_state.user_email = "beta-user@sra.local"
+        st.session_state["_auth_verified"] = True
+        return "beta-user@sra.local"
+
     # Fast-path: already authenticated → show badge and return
     verified_email = _clean_email(st.session_state.get("user_email", ""))
     if is_authenticated() and verified_email:
@@ -2582,7 +2595,7 @@ def render_auth_gate() -> str:
         used = user.get("analyses_used", 0) if isinstance(user, dict) else st.session_state.get("_session_report_count", 0)
         limit = user.get("analyses_limit", TIER_LIMITS["free"]) if isinstance(user, dict) else TIER_LIMITS["free"]
         st.success(f"✓ Verified as {verified_email}")
-        st.caption(f"{plan.upper()} plan · {used}/{limit} analyses used")
+        st.caption("Free during beta" if not REQUIRE_AUTH else f"{plan.upper()} plan · {used}/{limit} analyses used")
         return verified_email
 
     st.markdown(
@@ -2794,11 +2807,19 @@ def render_sidebar() -> tuple[str, str]:
                         )
 
         st.markdown(
+            (
+                """
+            <div class="sidebar-help-card">
+                <p><strong>Access:</strong> Free during beta.</p>
+            </div>
             """
+                if not REQUIRE_AUTH
+                else """
             <div class="sidebar-help-card">
                 <p><strong>Plan & help:</strong> Free access includes quick reports. Upgrade unlocks Deep Research, peer comparison, valuation, governance, and enhanced PDFs.</p>
             </div>
-            """,
+            """
+            ),
             unsafe_allow_html=True,
         )
     # Symbol is now captured in the main content area via render_research_setup();
@@ -3281,7 +3302,10 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
     plan = user.get("plan", "free") if isinstance(user, dict) else getattr(user, "plan", "free")
 
     with deep_tab:
-        if plan == "free":
+        if not REQUIRE_AUTH:
+            st.info("🔓 Available during beta")
+            render_deep_research_tab(data, result, data.get("symbol"))
+        elif plan == "free":
             st.warning("🔒 Deep Research is a Pro feature")
             st.markdown(
                 "Get peer comparison, analyst targets, valuation "
@@ -3578,8 +3602,13 @@ def render_footer(email: str) -> None:
         plan = user_field(user, "plan", "free")
         used = st.session_state.get("_session_report_count", 0)
         limit = user_field(user, "analyses_limit", 5)
+    footer_html = (
+        f'<div class="footer"><strong>{APP_TITLE}</strong> · Free during beta</div>'
+        if not REQUIRE_AUTH
+        else f'<div class="footer"><strong>{APP_TITLE}</strong> · User: {escape(str(email))} · Plan: {escape(str(plan).upper())} · Reports: {used}/{limit}</div>'
+    )
     st.markdown(
-        f'<div class="footer"><strong>{APP_TITLE}</strong> · User: {escape(str(email))} · Plan: {escape(str(plan).upper())} · Reports: {used}/{limit}</div>',
+        footer_html,
         unsafe_allow_html=True,
     )
 
@@ -3697,7 +3726,7 @@ def render_empty_preview() -> None:
             </div>
             <div class="empty-steps">
                 <div class="empty-step"><b>1</b><span>Choose a company name or NSE ticker from the sidebar.</span></div>
-                <div class="empty-step"><b>2</b><span>Run analysis after entering your email.</span></div>
+                <div class="empty-step"><b>2</b><span>Run analysis during the free beta.</span></div>
                 <div class="empty-step"><b>3</b><span>Review verdict, scorecards, and agent notes.</span></div>
             </div>
         </section>
@@ -3716,8 +3745,9 @@ def render_hero_action(symbol: str) -> bool:
         use_container_width=True,
         disabled=(not symbol.strip()),
     )
+    pricing_caption = "Free during beta" if not REQUIRE_AUTH else "Free: 5 reports · Pro: 100 reports · ₹199/mo"
     st.markdown(
-        '<p class="hero-pricing-caption" style="margin-left:0; padding-left:0.5rem;">Free: 5 reports · Pro: 100 reports · ₹199/mo</p>',
+        f'<p class="hero-pricing-caption" style="margin-left:0; padding-left:0.5rem;">{pricing_caption}</p>',
         unsafe_allow_html=True,
     )
     return clicked

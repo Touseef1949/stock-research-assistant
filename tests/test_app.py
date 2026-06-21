@@ -119,19 +119,47 @@ class TestSidebarQuickPicks:
 
 
 class TestEmailGate:
+    """Email gate tests. Skipped in beta mode since no email input is rendered."""
+
+    @staticmethod
+    def _skip_if_beta():
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no email gate rendered")
+    def test_beta_no_email_gate(self, app: AppTest):
+        """In beta mode, email gate is skipped and no _email_input is rendered."""
+        import importlib, payment
+        importlib.reload(payment)
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            # In beta mode, email input should not render
+            with pytest.raises(KeyError):
+                app.text_input(key="_email_input")
+        else:
+            email_input = app.text_input(key="_email_input")
+            assert email_input is not None
+
     def test_email_input_renders(self, app: AppTest):
-        """Email text input is present."""
+        """Email text input is present when auth is required."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no email input expected")
         email_input = app.text_input(key="_email_input")
         assert email_input is not None
 
     def test_confirm_email_button_renders(self, app: AppTest):
-        """Send OTP button is present."""
+        """Send OTP button is present when auth is required."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no OTP button expected")
         btn = app.button(key="send_otp_button")
         assert btn is not None
 
     # ── No email entered ──
     def test_confirm_without_email_does_not_show_success(self, app: AppTest):
         """Clicking Send OTP when email is empty should NOT show success."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no email gate")
         # Ensure email is empty
         email_input = app.text_input(key="_email_input")
         email_input.set_value("").run()
@@ -143,6 +171,9 @@ class TestEmailGate:
 
     def test_confirm_without_email_shows_warning(self, app: AppTest):
         """Clicking Send OTP with empty email should show a warning/error."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no email gate")
         email_input = app.text_input(key="_email_input")
         email_input.set_value("").run()
         app.button(key="send_otp_button").click().run()
@@ -153,6 +184,9 @@ class TestEmailGate:
     # ── Invalid email ──
     def test_confirm_invalid_email_no_at_sign(self, app: AppTest):
         """Invalid email (no @) should not confirm."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — no email gate")
         email_input = app.text_input(key="_email_input")
         email_input.set_value("invalid-email").run()
         app.button(key="send_otp_button").click().run()
@@ -162,6 +196,7 @@ class TestEmailGate:
 
     def test_confirm_invalid_email_shows_error(self, app: AppTest):
         """Invalid email should show error message."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("notanemail").run()
         app.button(key="send_otp_button").click().run()
@@ -170,6 +205,7 @@ class TestEmailGate:
     # ── Valid email ──
     def test_confirm_valid_email_shows_success(self, app: AppTest):
         """Valid email should send and verify an OTP."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("test@example.com").run()
         app.button(key="send_otp_button").click().run()
@@ -181,6 +217,7 @@ class TestEmailGate:
 
     def test_confirm_valid_email_shows_plan_info(self, app: AppTest):
         """Valid email confirmation should show plan info."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("user@test.com").run()
         app.button(key="send_otp_button").click().run()
@@ -196,6 +233,7 @@ class TestEmailGate:
     # ── Whitespace handling ──
     def test_confirm_whitespace_only_email_fails(self, app: AppTest):
         """Whitespace-only email should not confirm — show error or warning."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("   ").run()
         app.button(key="send_otp_button").click().run()
@@ -205,6 +243,7 @@ class TestEmailGate:
 
     def test_confirm_email_with_surrounding_spaces_works(self, app: AppTest):
         """Email with surrounding spaces should be trimmed and work."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("  test@example.com  ").run()
         app.button(key="send_otp_button").click().run()
@@ -217,6 +256,7 @@ class TestEmailGate:
     # ── Re-confirm / state persistence ──
     def test_email_confirmed_persists_across_rerun(self, app: AppTest):
         """Email confirmed state should persist after rerun."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("persist@test.com").run()
         app.button(key="send_otp_button").click().run()
@@ -231,6 +271,7 @@ class TestEmailGate:
     # ── Email change resets confirmation ──
     def test_changing_email_resets_confirmation(self, app: AppTest):
         """Changing email should require re-confirmation."""
+        self._skip_if_beta()
         email_input = app.text_input(key="_email_input")
         email_input.set_value("first@test.com").run()
         app.button(key="send_otp_button").click().run()
@@ -249,6 +290,7 @@ class TestEmailGate:
     # ── Verify then generate: session state must survive any rerun ──
     def test_verify_then_rerun_keeps_email(self, app: AppTest):
         """After OTP verify, session_state._auth_verified and user_email survive a plain rerun."""
+        self._skip_if_beta()
         app.text_input(key="_email_input").set_value("survive@test.com").run()
         app.button(key="send_otp_button").click().run()
         app.text_input(key="_otp_input").set_value("123456").run()
@@ -279,6 +321,9 @@ class TestAnalyzeButton:
 
     def test_analyze_button_hidden_when_unauthenticated(self, app: AppTest):
         """Hero CTA is gated behind auth — not visible to unauthenticated users."""
+        import payment
+        if not getattr(payment, "REQUIRE_AUTH", True):
+            pytest.skip("Beta mode — analyze button is always visible")
         with pytest.raises(KeyError):
             app.button(key="hero_analyze_button")
 
