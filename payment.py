@@ -28,7 +28,7 @@ APP_NAME = "Stock Research Assistant"
 AUTH_FILE = Path.home() / ".hermes" / "data" / "sra_auth.json"
 
 FREE_REPORT_LIMIT = 5
-REQUIRE_AUTH = False  # Feature flag: True = require email OTP. False = open beta.
+REQUIRE_AUTH = os.getenv("REQUIRE_AUTH", "").strip().lower() in ("1", "true", "yes")  # False = open beta (default)
 PRO_REPORT_LIMIT = 100
 INTERNAL_PRO_EMAILS = {"tshaik1990@gmail.com"}
 

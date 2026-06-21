@@ -26,6 +26,8 @@ jobs:
           pip install pytest pytest-cov pytest-timeout
 
       - name: Run tests with coverage
+        env:
+          REQUIRE_AUTH: "true"
         run: |
           python -m pytest tests/ -q --tb=short \
             --cov=. --cov-report=term-missing:skip-covered \
