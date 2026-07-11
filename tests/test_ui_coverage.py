@@ -81,8 +81,8 @@ class TestPageHeader:
         page_header("Title", "Subtitle text")
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
-        assert "Title" not in html  # title param is not used in current impl
-        # The subtitle is used, escaped
+        assert "Title" in html
+        # Product title and subtitle are used in the masthead and hero, escaped.
         assert "Subtitle text" in html
         assert mock_st.markdown.call_args[1]["unsafe_allow_html"] is True
 

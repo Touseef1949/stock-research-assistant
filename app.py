@@ -2358,6 +2358,358 @@ def _inject_mobile_styles() -> None:
             height: 1.25rem;
             width: 1.25rem;
         }
+
+        /* Production UI system: compact research workspace + deliberate responsive behavior. */
+        [data-testid="stAppViewContainer"] > .main {
+            padding-top: 0 !important;
+        }
+        [data-testid="stAppViewContainer"] .block-container {
+            max-width: 1180px !important;
+            padding: 1.25rem 2rem 3rem !important;
+        }
+        .page-header {
+            background:
+                radial-gradient(circle at 92% 12%, rgba(99, 102, 241, 0.13), transparent 18rem),
+                linear-gradient(145deg, var(--panel-strong), var(--panel)) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08) !important;
+            display: block !important;
+            margin: 0 0 0.85rem !important;
+            overflow: hidden;
+            padding: 0 !important;
+        }
+        .page-header::after {
+            background: linear-gradient(90deg, #0f766e, #2563eb, #7c3aed) !important;
+            height: 3px !important;
+        }
+        .product-masthead {
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 0.7rem;
+            padding: 0.72rem 1.15rem;
+        }
+        .product-mark {
+            align-items: center;
+            background: linear-gradient(145deg, #0f766e, #2563eb);
+            border-radius: 9px;
+            color: #fff !important;
+            display: flex;
+            font-size: 0.68rem;
+            font-weight: 900;
+            height: 2rem;
+            justify-content: center;
+            letter-spacing: -0.02em;
+            width: 2rem;
+        }
+        .product-identity { display: grid; line-height: 1.15; }
+        .product-identity strong { font-size: 0.82rem; }
+        .product-identity span { color: var(--muted-2) !important; font-size: 0.68rem; margin-top: 0.18rem; }
+        .system-status,
+        .command-assurance {
+            align-items: center;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 999px;
+            color: var(--muted) !important;
+            display: flex;
+            font-size: 0.68rem;
+            font-weight: 750;
+            gap: 0.42rem;
+            margin-left: auto;
+            padding: 0.35rem 0.58rem;
+            white-space: nowrap;
+        }
+        .system-status i,
+        .command-assurance i {
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+            height: 0.42rem;
+            width: 0.42rem;
+        }
+        .hero-copy { padding: 1.15rem 1.25rem 1.2rem !important; }
+        .page-header .eyebrow {
+            color: #0f766e !important;
+            font-size: 0.66rem !important;
+            letter-spacing: 0.13em !important;
+        }
+        .page-header h1 {
+            font-size: clamp(1.65rem, 3vw, 2.55rem) !important;
+            letter-spacing: -0.04em !important;
+            line-height: 1.05 !important;
+            margin: 0.45rem 0 0 !important;
+            max-width: 780px;
+        }
+        .page-header p {
+            color: var(--muted) !important;
+            font-size: 0.85rem !important;
+            line-height: 1.45 !important;
+            margin: 0.55rem 0 0 !important;
+            max-width: 820px;
+        }
+        .hero-proof { display: flex; flex-wrap: wrap; gap: 0.55rem 1.2rem; margin-top: 0.8rem; }
+        .hero-proof span {
+            color: var(--muted) !important;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .hero-proof span::before { color: #0f766e; content: "✓"; margin-right: 0.34rem; }
+
+        .research-command-intro {
+            align-items: center;
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-bottom: 0;
+            border-radius: 18px 18px 0 0;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.25rem;
+            padding: 0.9rem 1rem 0.75rem;
+        }
+        .command-kicker {
+            color: #2563eb !important;
+            font-size: 0.62rem;
+            font-weight: 850;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .research-command-intro h2 {
+            font-size: 1.08rem !important;
+            letter-spacing: -0.02em;
+            margin: 0.16rem 0 0 !important;
+        }
+        .research-command-intro p {
+            color: var(--muted) !important;
+            font-size: 0.72rem !important;
+            margin: 0.2rem 0 0 !important;
+        }
+        .command-section-head {
+            align-items: center;
+            background: var(--panel-strong);
+            border-left: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: flex;
+            gap: 0.65rem;
+            padding: 0.58rem 1rem 0.38rem;
+        }
+        .command-section-head b {
+            align-items: center;
+            background: rgba(37, 99, 235, 0.09);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            border-radius: 8px;
+            color: #2563eb !important;
+            display: flex;
+            font-size: 0.62rem;
+            height: 1.65rem;
+            justify-content: center;
+            width: 1.65rem;
+        }
+        .command-section-head > div { display: grid; line-height: 1.15; }
+        .command-section-head strong { font-size: 0.78rem; }
+        .command-section-head span { color: var(--muted-2) !important; font-size: 0.66rem; margin-top: 0.17rem; }
+        .command-section-head-workflow { padding-top: 0.75rem; }
+
+        .stTextInput input,
+        .stTextArea textarea,
+        [data-baseweb="select"] > div {
+            border-color: var(--border-strong) !important;
+            border-radius: 10px !important;
+            min-height: 2.65rem !important;
+        }
+        .stTextInput input:focus,
+        .stTextArea textarea:focus {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.11) !important;
+        }
+        .stTextArea textarea { min-height: 4.8rem !important; }
+        [data-testid="stHorizontalBlock"] { gap: 0.65rem !important; }
+        .st-key-quick_SBIN button,
+        .st-key-quick_RELIANCE button,
+        .st-key-quick_TCS button,
+        [class*="st-key-workflow_shortcut_"] button {
+            background: var(--panel-strong) !important;
+            border-color: var(--border) !important;
+            border-radius: 10px !important;
+            box-shadow: none !important;
+            min-height: 2.45rem !important;
+        }
+        [class*="st-key-workflow_shortcut_"] button p { font-size: 0.74rem !important; }
+        .st-key-quick_SBIN button:hover,
+        .st-key-quick_RELIANCE button:hover,
+        .st-key-quick_TCS button:hover,
+        [class*="st-key-workflow_shortcut_"] button:hover {
+            background: rgba(37, 99, 235, 0.06) !important;
+            border-color: rgba(37, 99, 235, 0.42) !important;
+            transform: translateY(-1px);
+        }
+        .execution-preview {
+            align-items: center;
+            background: var(--panel-soft);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            gap: 0.55rem;
+            margin: 0.1rem 0 0.55rem;
+            overflow: hidden;
+            padding: 0.48rem 0.62rem;
+        }
+        .execution-preview span {
+            color: var(--muted-2) !important;
+            flex: 0 0 auto;
+            font-size: 0.62rem;
+            font-weight: 850;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .execution-preview code {
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.68rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .stElementContainer.st-key-hero_analyze_button div.stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #0f766e, #2563eb) !important;
+            border: 0 !important;
+            border-radius: 11px !important;
+            box-shadow: 0 8px 22px rgba(37, 99, 235, 0.2) !important;
+            min-height: 3rem !important;
+        }
+        .hero-pricing-caption {
+            color: var(--muted-2) !important;
+            font-size: 0.68rem !important;
+            margin: 0.4rem 0 0.75rem !important;
+            text-align: center;
+        }
+        .sample-report-preview {
+            background: var(--panel-strong) !important;
+            border-color: var(--border) !important;
+            border-radius: 18px !important;
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06) !important;
+        }
+        .sample-verdict-card,
+        .sample-report-grid article {
+            background: var(--panel-soft) !important;
+            border-color: var(--border) !important;
+        }
+        .sample-verdict-card strong { color: #0f766e !important; }
+        .sample-verdict-card small { color: var(--muted) !important; }
+
+        [data-testid="stTabs"] [role="tablist"] {
+            background: var(--panel-soft) !important;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 0.15rem !important;
+            overflow-x: auto !important;
+            padding: 0.25rem !important;
+            scrollbar-width: none;
+            white-space: nowrap;
+        }
+        [data-testid="stTabs"] [role="tab"] {
+            border-radius: 9px !important;
+            flex: 0 0 auto !important;
+            min-height: 2.55rem !important;
+            padding: 0.45rem 0.72rem !important;
+            width: auto !important;
+        }
+        [data-testid="stTabs"] [aria-selected="true"] {
+            background: var(--panel-strong) !important;
+            box-shadow: 0 2px 7px rgba(15, 23, 42, 0.08) !important;
+        }
+        .stock-header-card,
+        .executive-verdict-strip,
+        [data-testid="stExpander"] {
+            border-color: var(--border) !important;
+            box-shadow: 0 10px 32px rgba(15, 23, 42, 0.05) !important;
+        }
+
+        @media (max-width: 768px) {
+            [data-testid="stAppViewContainer"] .block-container {
+                padding: 0.78rem 0.9rem 5rem !important;
+            }
+            .page-header { border-radius: 16px !important; margin-top: 2.8rem !important; }
+            .product-masthead { padding: 0.65rem 0.78rem; }
+            .product-identity span { display: none; }
+            .system-status { font-size: 0; padding: 0.38rem; }
+            .system-status::after { content: "Live"; font-size: 0.64rem; }
+            .hero-copy { padding: 0.9rem 0.9rem 1rem !important; }
+            .page-header h1 { font-size: clamp(1.45rem, 7vw, 1.9rem) !important; line-height: 1.08 !important; }
+            .page-header p {
+                display: -webkit-box;
+                font-size: 0.78rem !important;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
+            }
+            .hero-proof { gap: 0.45rem 0.85rem; margin-top: 0.65rem; }
+            .hero-proof span { font-size: 0.64rem; }
+            .hero-proof span:last-child { display: none; }
+
+            .research-command-intro { border-radius: 15px 15px 0 0; padding: 0.72rem 0.75rem 0.58rem; }
+            .research-command-intro h2 { font-size: 0.95rem !important; }
+            .research-command-intro p { display: none; }
+            .command-assurance { font-size: 0.62rem; padding: 0.3rem 0.45rem; }
+            .command-section-head { padding: 0.48rem 0.72rem 0.32rem; }
+            .command-section-head span { font-size: 0.62rem; }
+            .command-section-head-workflow { padding-top: 0.62rem; }
+
+            /* Keep ticker presets on one swipeable rail instead of a three-card vertical stack. */
+            [data-testid="stHorizontalBlock"]:has(.st-key-quick_SBIN) {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 0.6rem !important;
+                overflow-x: auto !important;
+                padding: 0.05rem 0 0.35rem;
+                scroll-snap-type: x proximity;
+                scrollbar-width: none;
+            }
+            [data-testid="stHorizontalBlock"]:has(.st-key-quick_SBIN) > [data-testid="stColumn"] {
+                display: block !important;
+                flex: 0 0 76% !important;
+                max-width: 76% !important;
+                min-width: 0 !important;
+                scroll-snap-align: start;
+                width: 76% !important;
+            }
+            /* The select remains the primary mobile workflow chooser; shortcuts are redundant here. */
+            [data-testid="stHorizontalBlock"]:has([class*="st-key-workflow_shortcut_"]) { display: none !important; }
+            .stTextArea textarea { min-height: 4.35rem !important; }
+            .execution-preview { margin-bottom: 0.45rem; }
+            .execution-preview code { max-width: 70vw; }
+            .stElementContainer.st-key-hero_analyze_button div.stButton > button[kind="primary"] {
+                font-size: 0.9rem !important;
+                min-height: 3.15rem !important;
+            }
+            .hero-pricing-caption { font-size: 0.61rem !important; line-height: 1.35; }
+            .sample-report-preview { border-radius: 15px !important; }
+            .sample-report-sections { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 0.15rem; }
+            .sample-report-section-pill { flex: 0 0 auto; }
+
+            [data-testid="stTabs"] [role="tablist"] {
+                flex-direction: row !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                width: 100% !important;
+            }
+            [data-testid="stTabs"] [role="tab"] { min-height: 2.75rem !important; width: auto !important; }
+            .executive-verdict-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+            .executive-verdict-copy h3 { padding-bottom: 0 !important; padding-top: 0 !important; }
+            .stock-title-row { align-items: flex-start !important; flex-direction: column !important; gap: 0.8rem !important; }
+            .stock-price-block { text-align: left !important; }
+        }
+
+        @media (max-width: 380px) {
+            [data-testid="stTabs"] [role="tablist"] { flex-direction: row !important; }
+            [data-testid="stTabs"] [role="tab"] { width: auto !important; }
+            .hero-proof span:nth-child(2) { display: none; }
+            .executive-verdict-metrics { grid-template-columns: 1fr !important; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -2638,14 +2990,20 @@ def render_research_setup() -> str:
     if not (is_authenticated() and verified_email):
         return st.session_state.get("symbol_input", "SBIN")
 
-    # ── Research setup card ──
+    # ── Research command center ──
     st.markdown(
         """
-        <div class="sidebar-premium-card sidebar-research-card sidebar-research-card-compact"
-             style="max-width:640px;">
-            <span>Research setup</span>
-            <strong>Choose an NSE company</strong>
-            <p>Company name or ticker — we resolve it before the report runs.</p>
+        <section class="research-command-intro" aria-label="Research command center">
+            <div>
+                <span class="command-kicker">New research</span>
+                <h2>Build your decision brief</h2>
+                <p>Choose a company, set the research lens, and launch the agent workflow.</p>
+            </div>
+            <div class="command-assurance"><i></i> Live workflow</div>
+        </section>
+        <div class="command-section-head">
+            <b>01</b>
+            <div><strong>Company</strong><span>Search by NSE ticker or company name</span></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -2694,24 +3052,33 @@ def render_research_workflow_setup(symbol: str) -> str:
     """Capture the investor's decision and return a router-ready query."""
     st.markdown(
         """
-        <div class="sidebar-premium-card sidebar-research-card sidebar-research-card-compact"
-             style="max-width:760px; margin-top:0.75rem;">
-            <span>Research workflow</span>
-            <strong>What decision are you making?</strong>
-            <p>Choose a workflow or let the assistant route your question automatically.</p>
+        <div class="command-section-head command-section-head-workflow">
+            <b>02</b>
+            <div><strong>Research lens</strong><span>Choose a workflow or let the assistant route your question</span></div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     labels = list(WORKFLOW_CHOICES)
-    selected = st.selectbox(
-        "Research workflow",
-        options=labels,
-        key="research_workflow_choice",
-        help="Auto-select routes your question; explicit workflows always take priority.",
-    )
-    st.caption(WORKFLOW_CHOICES[selected]["description"])
+    workflow_column, question_column = st.columns([0.82, 1.18])
+    with workflow_column:
+        selected = st.selectbox(
+            "Research workflow",
+            options=labels,
+            key="research_workflow_choice",
+            help="Auto-select routes your question; explicit workflows always take priority.",
+        )
+        st.caption(WORKFLOW_CHOICES[selected]["description"])
+
+    with question_column:
+        question = st.text_area(
+            "Decision or research question",
+            key="research_question",
+            placeholder="Example: Is the current valuation justified, and what would invalidate the thesis?",
+            help="The question is stored with this report and used to select or contextualize the workflow.",
+            height=78,
+        )
 
     common = ("Stock snapshot", "Fundamental quality", "Valuation scenarios", "Investment thesis")
     columns = st.columns(len(common))
@@ -2725,15 +3092,11 @@ def render_research_workflow_setup(symbol: str) -> str:
                 use_container_width=True,
             )
 
-    question = st.text_area(
-        "Decision or research question",
-        key="research_question",
-        placeholder="Example: Is the current valuation justified, and what would invalidate the thesis?",
-        help="The question is stored with this report and used to select or contextualize the workflow.",
-        height=88,
-    )
     query = build_research_query(symbol, selected, question)
-    st.caption(f"Execution request: `{query}`")
+    st.markdown(
+        f'<div class="execution-preview"><span>Agent route</span><code>{escape(query)}</code></div>',
+        unsafe_allow_html=True,
+    )
     return query
 
 
@@ -3854,13 +4217,13 @@ def render_hero_action(symbol: str) -> bool:
     """Above-the-fold action strip so the report CTA is visible before scrolling."""
     sym = escape((symbol or "SBIN").upper())
     clicked = st.button(
-        f"Generate {sym} Research Report",
+        f"Run research for {sym}  →",
         key="hero_analyze_button",
         type="primary",
         use_container_width=True,
         disabled=(not symbol.strip()),
     )
-    pricing_caption = "Free during beta" if not REQUIRE_AUTH else "Free: 5 reports · Pro: 100 reports · ₹199/mo"
+    pricing_caption = "Source-traced output · Built in about 30 seconds · Research aid, not financial advice"
     st.markdown(
         f'<p class="hero-pricing-caption" style="margin-left:0; padding-left:0.5rem;">{pricing_caption}</p>',
         unsafe_allow_html=True,

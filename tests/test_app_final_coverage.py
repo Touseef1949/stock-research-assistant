@@ -230,13 +230,13 @@ def test_sidebar_history_load_and_missing_report_warning(monkeypatch: pytest.Mon
     assert any("Saved report could not be loaded" in str(item.value) for item in at.warning)
 
 
-def test_authenticated_research_path_access_badge_and_pricing(auth_app: AppTest):
+def test_authenticated_research_path_access_badge_and_assurance(auth_app: AppTest):
     rendered = "\n".join(str(item.value) for item in auth_app.markdown)
     captions = "\n".join(str(item.value) for item in auth_app.caption)
 
-    assert "Research setup" in rendered
-    assert "Choose an NSE company" in rendered
-    assert "Free: 5 reports" in rendered
+    assert "Build your decision brief" in rendered
+    assert "Search by NSE ticker or company name" in rendered
+    assert "Source-traced output" in rendered
     assert "FREE plan" in captions
     assert any("Verified as test@example.com" in str(item.value) for item in auth_app.success)
 
