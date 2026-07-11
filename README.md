@@ -23,14 +23,26 @@ Stock_Research_Assistant/
 ├── yf_client.py              # Yahoo Finance API client
 ├── ui.py                     # Reusable Streamlit UI components
 ├── core/
-│   └── models.py             # AgentResult dataclass + SCORE_ORDER
+│   ├── models.py             # Existing report models
+│   ├── skills.py             # Progressive SKILL.md registry
+│   ├── research_router.py    # Direct-vs-workflow routing
+│   ├── research_contracts.py # Evidence/tool/trace contracts
+│   └── research_validation.py# Evidence citation gate
+├── skills/                   # 9 decision-oriented research procedures
+├── research_tools/           # Normalized deterministic research tools
 ├── services/
 │   ├── market_data.py        # YF/Screener/web fallback pipeline (96% coverage)
 │   ├── analysis_pipeline.py  # Agent pipeline + local fallback (90% coverage)
+│   ├── research_workflow.py  # Skill loading and tool execution
+│   ├── research_orchestrator.py # Grounded synthesis + fallback
+│   ├── document_client.py    # Bounded transcript extraction
 │   ├── report_history.py     # Report persistence + JSON serialization
 │   └── error_logging.py      # Structured JSONL error logging
 ├── deep_research/            # Pro deep-research module (10 agents)
-├── tests/                    # 674 tests, 95% coverage
+├── eval/                     # Routing and grounding release gates
+├── docs/
+│   └── SKILL_ARCHITECTURE.md # Extension and operations guide
+├── tests/                    # Unit, integration, AppTest, and workflow eval tests
 ├── scripts/
 │   └── health_monitor.py     # Uptime + error log health check
 ├── .github/workflows/
@@ -44,6 +56,7 @@ Stock_Research_Assistant/
 | Task | Command |
 |------|---------|
 | Run tests | `/usr/local/bin/python3 -m pytest tests/ -q` |
+| Run research evals | `/usr/local/bin/python3 eval/run_research_evals.py` |
 | Coverage report | `/usr/local/bin/python3 -m pytest tests/ --cov=. --cov-report=term-missing` |
 | Deploy to HF Space | `git push hf main` (pre-push hook runs tests first) |
 | Health check | `/usr/local/bin/python3 scripts/health_monitor.py` |
@@ -65,6 +78,7 @@ Stock_Research_Assistant/
 When the repo is connected to GitHub:
 - `.github/workflows/test.yml` runs on every push/PR
 - Test gate: all tests must pass + coverage ≥ 90%
+- Research gate: routing accuracy ≥90% and all grounding cases pass
 - Security: gitleaks scans for exposed API keys/secrets
 
 ## Monitoring
@@ -103,6 +117,14 @@ When the repo is connected to GitHub:
 - [x] Live Kite integration — live LTP + OHLC via Zerodha Kite, graceful fallback to yfinance
 - [x] Load testing — 10 concurrent users, 0 failures, median 230ms
 - [x] GitHub remote — https://github.com/Touseef1949/stock-research-assistant
+- [x] Progressive skill registry and lazy procedure loading
+- [x] Direct factual routing that skips expensive agent synthesis
+- [x] Evidence/source/confidence contracts and audit trace
+- [x] Peer, filing/results, and bounded transcript tools
+- [x] Citation validation with deterministic grounded fallback
+- [x] Routing and grounding evaluation gate
+
+See [Skill-Driven Research Architecture](docs/SKILL_ARCHITECTURE.md) for the execution contract and extension guide.
 
 ## Troubleshooting
 

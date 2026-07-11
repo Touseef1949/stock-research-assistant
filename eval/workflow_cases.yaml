@@ -1,0 +1,68 @@
+minimum_routing_accuracy: 0.90
+cases:
+  - query: What is TCS current price?
+    mode: direct
+    direct_tool: get_market_snapshot
+  - query: Show me INFY market cap
+    mode: direct
+    direct_tool: get_market_snapshot
+  - query: What is RELIANCE P/E?
+    mode: direct
+    direct_tool: get_market_snapshot
+  - query: What is HDFCBANK ROE?
+    mode: direct
+    direct_tool: get_fundamental_metrics
+  - query: Show SBIN debt to equity
+    mode: direct
+    direct_tool: get_fundamental_metrics
+  - query: What is TCS RSI?
+    mode: direct
+    direct_tool: get_technical_metrics
+  - query: /snapshot TCS
+    mode: workflow
+    skill: stock-snapshot
+  - query: /fundamentals INFY
+    mode: workflow
+    skill: fundamental-quality
+  - query: /entry RELIANCE
+    mode: workflow
+    skill: technical-entry
+  - query: /peers TCS
+    mode: workflow
+    skill: peer-valuation
+  - query: /valuation TCS
+    mode: workflow
+    skill: valuation-scenarios
+  - query: /risks PAYTM
+    mode: workflow
+    skill: risk-governance
+  - query: /earnings INFY
+    mode: workflow
+    skill: earnings-deep-dive
+  - query: /thesis CDSL
+    mode: workflow
+    skill: investment-thesis
+  - query: /catalysts TCS
+    mode: workflow
+    skill: catalyst-monitor
+  - query: Review the latest earnings and guidance for Infosys
+    mode: workflow
+    skill: earnings-deep-dive
+  - query: Is TCS expensive compared with its peers?
+    mode: workflow
+    skill: peer-valuation
+  - query: Build bear base and bull valuation cases for RELIANCE
+    mode: workflow
+    skill: valuation-scenarios
+  - query: What governance and downside risks should I monitor in PAYTM?
+    mode: workflow
+    skill: risk-governance
+  - query: Find technical entry conditions and invalidation levels for SBIN
+    mode: workflow
+    skill: technical-entry
+  - query: Build a bull and bear investment thesis for CDSL
+    mode: workflow
+    skill: investment-thesis
+  - query: What upcoming catalysts and news should I monitor for TCS?
+    mode: workflow
+    skill: catalyst-monitor

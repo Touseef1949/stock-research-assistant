@@ -18,6 +18,8 @@ from logic import (
     verdict_for_score,
 )
 from services.market_data import load_market_data
+from services.research_orchestrator import run_research_request
+from core.research_router import route_research_query
 from yf_client import YFinanceRateLimitError
 
 try:
@@ -325,6 +327,7 @@ def run_analysis(
     api_key: str,
     progress_callback: Callable[[int, str | None], None] | None = None,
     resolved: dict[str, str] | None = None,
+    research_query: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     if resolved is None:
         resolved = resolve_ticker(symbol)
@@ -341,7 +344,14 @@ def run_analysis(
 
     if progress_callback:
         progress_callback(20, "Running AI analysis...")
-    if api_key:
+    workflow_query = research_query or f"/snapshot {nse_symbol}"
+    initial_route = route_research_query(workflow_query)
+    if initial_route.mode == "direct":
+        if progress_callback:
+            progress_callback(70, "Preparing direct evidence...")
+            progress_callback(95, None)
+        result = run_local_pipeline(data, "Direct metric request; expensive agent synthesis was skipped.")
+    elif api_key:
         result = run_agent_pipeline(api_key, nse_symbol, data, progress_callback)
     else:
         if progress_callback:
@@ -349,4 +359,16 @@ def run_analysis(
             progress_callback(80, "Generating report...")
             progress_callback(95, None)
         result = run_local_pipeline(data, "DEEPSEEK_API_KEY is missing.")
+    research_response = run_research_request(
+        workflow_query,
+        data,
+        api_key=api_key,
+        base_result=result,
+    )
+    result["base_report"] = result.get("final_report", "")
+    result["final_report"] = research_response.answer
+    result["research_request"] = workflow_query
+    result["research_workflow"] = research_response.workflow.to_dict()
+    result["research_validation"] = research_response.validation
+    result["research_synthesis_mode"] = research_response.synthesis_mode
     return data, result

@@ -47,6 +47,11 @@ jobs:
           print('Coverage gate passed')
           "
 
+      - name: Research routing and grounding gate
+        env:
+          REQUIRE_AUTH: "true"
+        run: python eval/run_research_evals.py
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 5

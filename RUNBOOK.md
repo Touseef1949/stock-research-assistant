@@ -3,7 +3,7 @@
 > **Live URL**: https://tshaik1990-stock-research-assistant.hf.space
 > **Source**: https://github.com/Touseef1949/stock-research-assistant
 > **HF Spaces remote**: `hf` (push to deploy)
-> **Last updated**: 2026-06-19
+> **Last updated**: 2026-07-11
 
 ---
 
@@ -16,11 +16,15 @@ Stock_Research_Assistant/
 ├── payment.py                # Supabase auth + Razorpay payments
 ├── yf_client.py              # Yahoo Finance API client
 ├── ui.py                     # Reusable Streamlit UI components
-├── core/
-│   └── models.py             # AgentResult dataclass + SCORE_ORDER
+├── core/                     # Report models, skill registry, router, contracts, validation
+├── skills/                   # 9 progressively loaded research procedures
+├── research_tools/           # Deterministic market/external tool facade
 ├── services/
 │   ├── market_data.py        # YF/Screener/web fallback pipeline
 │   ├── analysis_pipeline.py  # Agent pipeline + local fallback
+│   ├── research_workflow.py  # Skill loading + normalized tool execution
+│   ├── research_orchestrator.py # Direct/agent/fallback synthesis
+│   ├── document_client.py    # Bounded approved-source transcript reader
 │   ├── report_history.py     # Report persistence + JSON serialization
 │   ├── kite_client.py        # Zerodha Kite live prices (local only)
 │   ├── error_logging.py      # Structured JSONL error logging
@@ -36,7 +40,9 @@ Stock_Research_Assistant/
 │   ├── screener_client.py
 │   ├── report.py
 │   └── __init__.py
-├── tests/                    # 696 tests, 94% coverage
+├── eval/                     # Routing + evidence-grounding release gate
+├── docs/SKILL_ARCHITECTURE.md
+├── tests/                    # Unit + integration + AppTest + architecture tests
 │   ├── load/
 │   │   └── locustfile.py     # Locust load testing
 │   └── *.py                  # Unit + integration + AppTest
@@ -59,6 +65,7 @@ Stock_Research_Assistant/
 | Task | Command |
 |------|---------|
 | Run all tests | `/usr/local/bin/python3 -m pytest tests/ -q` |
+| Run research release gate | `/usr/local/bin/python3 eval/run_research_evals.py` |
 | Run tests (excl slow) | `/usr/local/bin/python3 -m pytest tests/ -q -k "not slow"` |
 | Coverage report | `/usr/local/bin/python3 -m pytest tests/ --cov=. --cov-report=term-missing` |
 | Deploy to HF Space | `git push hf main` (pre-push hook runs tests first) |
@@ -120,6 +127,8 @@ NOT in a committed secrets.toml file.
 ### CI/CD Monitoring
 - GitHub Actions runs on every push to `main` and every PR
 - Coverage gate: ≥90% or build fails
+- Research routing gate: ≥90% accuracy
+- Evidence grounding gate: every release case must pass
 - Gitleaks: scans for leaked secrets in every push
 
 ## 6. Incident Response
@@ -163,6 +172,8 @@ NOT in a committed secrets.toml file.
 - **Kite data is local-only**: Kite Connect terms (§2a) prohibit SaaS use.
   Kite is only for personal/local price data; the SaaS uses yfinance (.NS).
 - **HF Spaces cold start**: First request after sleep takes ~10-15s.
+- **Upstream HTML changes**: Screener tables and document indexes are defensive parsers. Missing sections return explicit warnings rather than fabricated values.
+- **Scanned transcripts**: PDFs without embedded text are reported as requiring OCR; OCR is not run on the CPU-basic Space.
 - **app.py size**: 3,900+ lines. Should be split into `ui_sections/` modules
   in a future refactor. Not a production risk, but a maintainability concern.
 
@@ -176,7 +187,8 @@ NOT in a committed secrets.toml file.
 | Regression | ~80 | Known bug fixes stay fixed |
 | AppTest | ~46 | Streamlit widget rendering and interaction |
 | Load | Locust | Non-LLM endpoints under concurrent load |
-| **Total** | **696** | **94% coverage** |
+| Research eval | 27 | Router intent and grounded-answer release cases |
+| **Total** | **800+** | **≥90% coverage gate** |
 
 ## 9. Contact
 
