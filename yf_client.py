@@ -183,6 +183,25 @@ def search_quotes(query: str) -> list[dict[str, Any]]:
     return _call_with_retry(_fetch, f"searching for {query}")
 
 
+def ticker_news(symbol: str, count: int = 10) -> list[dict[str, Any]]:
+    """Fetch recent yfinance news through the shared retry/rate-limit policy."""
+    if yf is None:
+        return []
+
+    def _fetch() -> list[dict[str, Any]]:
+        try:
+            ticker = yf.Ticker(symbol, session=_fresh_session())
+            if hasattr(ticker, "get_news"):
+                return list(ticker.get_news(count=count) or [])[:count]
+            return list(getattr(ticker, "news", []) or [])[:count]
+        except Exception as exc:
+            if _is_rate_limit_error(exc):
+                raise YFinanceRateLimitError(str(exc)) from exc
+            raise
+
+    return _call_with_retry(_fetch, f"fetching news for {symbol}")
+
+
 def is_rate_limit_error(exc: Exception) -> bool:
     """Public helper to detect rate-limit errors."""
     return _is_rate_limit_error(exc)

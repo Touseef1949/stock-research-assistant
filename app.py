@@ -100,6 +100,13 @@ from services.market_data import (
     _current_price_from_web_search,
 )
 from services.error_logging import log_error
+from services.research_presenter import (
+    WORKFLOW_CHOICES,
+    build_research_query,
+    evidence_rows,
+    trace_rows,
+    workflow_overview,
+)
 
 
 def inline_markdown_to_html(text: str) -> str:
@@ -2411,6 +2418,8 @@ def init_state() -> None:
         "sra_report_history": [],
         "_history_email": "",
         "symbol_input": "SBIN",
+        "research_workflow_choice": "Auto-select",
+        "research_question": "",
         "user_email": "",
         "_auth_verified": False,
         "_otp_sent": False,
@@ -2674,6 +2683,58 @@ def render_research_setup() -> str:
             )
 
     return symbol
+
+
+def _select_workflow(label: str) -> None:
+    """Widget callback used by workflow shortcut buttons."""
+    st.session_state["research_workflow_choice"] = label
+
+
+def render_research_workflow_setup(symbol: str) -> str:
+    """Capture the investor's decision and return a router-ready query."""
+    st.markdown(
+        """
+        <div class="sidebar-premium-card sidebar-research-card sidebar-research-card-compact"
+             style="max-width:760px; margin-top:0.75rem;">
+            <span>Research workflow</span>
+            <strong>What decision are you making?</strong>
+            <p>Choose a workflow or let the assistant route your question automatically.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    labels = list(WORKFLOW_CHOICES)
+    selected = st.selectbox(
+        "Research workflow",
+        options=labels,
+        key="research_workflow_choice",
+        help="Auto-select routes your question; explicit workflows always take priority.",
+    )
+    st.caption(WORKFLOW_CHOICES[selected]["description"])
+
+    common = ("Stock snapshot", "Fundamental quality", "Valuation scenarios", "Investment thesis")
+    columns = st.columns(len(common))
+    for column, label in zip(columns, common):
+        with column:
+            st.button(
+                label,
+                key=f"workflow_shortcut_{WORKFLOW_CHOICES[label]['command'].lstrip('/')}",
+                on_click=_select_workflow,
+                args=(label,),
+                use_container_width=True,
+            )
+
+    question = st.text_area(
+        "Decision or research question",
+        key="research_question",
+        placeholder="Example: Is the current valuation justified, and what would invalidate the thesis?",
+        help="The question is stored with this report and used to select or contextualize the workflow.",
+        height=88,
+    )
+    query = build_research_query(symbol, selected, question)
+    st.caption(f"Execution request: `{query}`")
+    return query
 
 
 def render_sidebar_sign_out() -> None:
@@ -3193,6 +3254,15 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
     render_stock_header(data)
     executive_verdict_strip(data, result)
 
+    workflow = result.get("research_workflow")
+    overview = workflow_overview(workflow)
+    selected_workflow = ", ".join(overview["skills"]) or overview["direct_tool"] or "Legacy report"
+    source_text = ", ".join(overview["sources"]) or str(data.get("source") or "unknown")
+    st.info(
+        f"Research workflow: {selected_workflow} · {overview['evidence_count']} evidence records · "
+        f"Sources: {source_text}"
+    )
+
     section_title("Research Scorecard")
     score_cols = st.columns([1, 1, 1, 1, 0.92])
     for col, label in zip(score_cols[:4], SCORE_ORDER):
@@ -3212,8 +3282,8 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
         ("1Y Return", number(t.get("return_1y_pct"), "%"), "Price momentum", "↗"),
     ]
 
-    overview_tab, chart_tab, agent_tab, metrics_tab, deep_tab = st.tabs(
-        ["Overview", "Price chart", "Agent breakdown", "Key metrics", "Deep Research"]
+    overview_tab, chart_tab, agent_tab, metrics_tab, audit_tab, deep_tab = st.tabs(
+        ["Overview", "Price chart", "Agent breakdown", "Key metrics", "Research audit", "Deep Research"]
     )
 
     with overview_tab:
@@ -3289,6 +3359,9 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
                 st.write(f"**Resistance:** ₹{t.get('resistance'):.2f}")
                 st.write(f"**60D Volatility:** {number(t.get('volatility_60d_pct'), '%')}")
 
+    with audit_tab:
+        render_research_audit(result)
+
     email = st.session_state.get("user_email", "")
     user = get_user(email) if email else None
     plan = user.get("plan", "free") if isinstance(user, dict) else getattr(user, "plan", "free")
@@ -3308,6 +3381,56 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
             _render_upgrade_ui(email, plan)
         else:
             render_deep_research_tab(data, result, data.get("symbol"))
+
+
+def render_research_audit(result: dict[str, Any]) -> None:
+    """Render evidence provenance and execution actions without chain-of-thought."""
+    workflow = result.get("research_workflow")
+    overview = workflow_overview(workflow)
+    section_title("Research Workflow")
+    question = str(result.get("research_question") or "").strip()
+    if question:
+        st.markdown(f"**Decision context:** {question}")
+    selected = overview["skills"] or ([overview["direct_tool"]] if overview["direct_tool"] else [])
+    st.write(f"**Selected:** {', '.join(selected) or 'Unavailable'}")
+    st.write(f"**Routing basis:** {overview['reason'] or 'Unavailable'}")
+    st.write(f"**Sources:** {', '.join(overview['sources']) or 'Unavailable'}")
+    st.write(f"**Synthesis mode:** {result.get('research_synthesis_mode', 'legacy')}")
+    validation = result.get("research_validation") if isinstance(result.get("research_validation"), dict) else {}
+    if validation:
+        validation_state = "Passed" if validation.get("valid") else "Needs review"
+        st.write(
+            f"**Evidence validation:** {validation_state} · "
+            f"{len(validation.get('cited_evidence_ids') or [])} cited records"
+        )
+
+    if overview["warnings"]:
+        for warning in overview["warnings"]:
+            st.warning(warning)
+
+    evidence = evidence_rows(workflow)
+    section_title("Evidence Explorer")
+    if evidence:
+        st.dataframe(evidence, use_container_width=True, hide_index=True)
+    else:
+        st.info("This legacy report does not contain structured evidence records.")
+
+    actions = trace_rows(workflow)
+    section_title("Execution Trace")
+    st.caption("This lists selected skills, tools, quality gates, and sources—not hidden model reasoning.")
+    if actions:
+        st.dataframe(actions, use_container_width=True, hide_index=True)
+    else:
+        st.info("This legacy report does not contain an execution trace.")
+
+    loaded = workflow.get("loaded_skills") if isinstance(workflow, dict) else []
+    if loaded:
+        with st.expander("Loaded skill procedures"):
+            for skill in loaded:
+                if not isinstance(skill, dict):
+                    continue
+                st.markdown(f"**{skill.get('name', 'Skill')}** — {skill.get('description', '')}")
+                st.markdown(str(skill.get("procedure") or ""))
 
 
 # ---------------------------------------------------------------------------
@@ -3826,6 +3949,8 @@ def main() -> None:
     # ── Company picker + quick-picks IN MAIN CONTENT (mobile-first) ──
     symbol = render_research_setup()
 
+    research_query = render_research_workflow_setup(symbol)
+
     hero_analyze = render_hero_action(symbol)
 
     api_key = get_deepseek_key()
@@ -3885,7 +4010,14 @@ def main() -> None:
                 f'<p class="analysis-wit">💡 {ROTATING_WIT[0]}</p>',
                 unsafe_allow_html=True,
             )
-            data, result = run_analysis(symbol, api_key, update_progress, resolved=resolved)
+            data, result = run_analysis(
+                symbol,
+                api_key,
+                update_progress,
+                resolved=resolved,
+                research_query=research_query,
+            )
+            result["research_question"] = str(st.session_state.get("research_question") or "").strip()
             progress_bar.progress(100)
             progress_bar.empty()
             label_placeholder.empty()

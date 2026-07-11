@@ -14,11 +14,35 @@ from yf_client import (
     _fresh_session,
     _sleep_with_jitter,
     is_rate_limit_error,
+    ticker_news,
     _MAX_RETRIES,
     _BASE_DELAY,
     _MAX_DELAY,
     _USER_AGENTS,
 )
+
+
+def test_ticker_news_uses_bounded_get_news(monkeypatch):
+    import yf_client
+
+    ticker = MagicMock()
+    ticker.get_news.return_value = [{"title": "one"}, {"title": "two"}]
+    fake_yf = MagicMock()
+    fake_yf.Ticker.return_value = ticker
+    monkeypatch.setattr(yf_client, "yf", fake_yf)
+    monkeypatch.setattr(yf_client, "_fresh_session", lambda: object())
+
+    result = ticker_news("TCS.NS", count=1)
+
+    assert result == [{"title": "one"}]
+    ticker.get_news.assert_called_once_with(count=1)
+
+
+def test_ticker_news_returns_empty_when_yfinance_missing(monkeypatch):
+    import yf_client
+
+    monkeypatch.setattr(yf_client, "yf", None)
+    assert ticker_news("TCS.NS") == []
 
 
 # ── YFinanceRateLimitError ──

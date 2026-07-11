@@ -59,12 +59,13 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
         session = object()
         user = type("User", (), {"id": "test-user"})()
 
-    def fake_run_analysis(symbol, api_key="", progress_callback=None, resolved=None):
+    def fake_run_analysis(symbol, api_key="", progress_callback=None, resolved=None, research_query=None):
         calls.append(
             {
                 "symbol": symbol,
                 "api_key": api_key,
                 "resolved": resolved,
+                "research_query": research_query,
             }
         )
         if progress_callback is not None:
@@ -80,6 +81,12 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
             "change": 4.0,
             "change_pct": 0.54,
             "source": "mock",
+            "info": {
+                "currentPrice": 750.0,
+                "targetMeanPrice": 800.0,
+                "numberOfAnalystOpinions": 12,
+                "recommendationKey": "buy",
+            },
             "fundamentals": {
                 "market_cap": 1000000000,
                 "trailing_pe": 12.5,
@@ -114,6 +121,15 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
                 for name in ("Fundamentals", "Technicals", "Sentiment", "Risk")
             },
         }
+        from services.research_orchestrator import run_research_request
+
+        response = run_research_request(research_query or "/snapshot SBIN", data, base_result=result)
+        result["base_report"] = result["final_report"]
+        result["final_report"] = response.answer
+        result["research_request"] = research_query or "/snapshot SBIN"
+        result["research_workflow"] = response.workflow.to_dict()
+        result["research_validation"] = response.validation
+        result["research_synthesis_mode"] = response.synthesis_mode
         return data, result
 
     monkeypatch.setattr(payment, "_supabase_offline", lambda: True)
@@ -160,6 +176,20 @@ def test_hero_analyze_runs_mocked_pipeline_and_renders_result(app_auth_pipeline)
     assert any(call.get("usage") == "stock_research" for call in calls)
     rendered = "\n".join(str(markdown.value) for markdown in at.markdown)
     assert "Mocked SBI report generated without external agents." in rendered
+
+
+def test_selected_workflow_and_question_are_attached_to_report(app_auth_pipeline):
+    at, _calls = app_auth_pipeline
+    at.selectbox(key="research_workflow_choice").select("Valuation scenarios").run(timeout=60)
+    at.text_area(key="research_question").set_value("What is priced in?").run(timeout=60)
+
+    at.button(key="hero_analyze_button").click().run(timeout=120)
+
+    result = at.session_state["sra_result"]
+    assert result["research_question"] == "What is priced in?"
+    assert result["research_request"].startswith("/valuation SBIN")
+    assert result["research_workflow"]["route"]["skills"] == ("valuation-scenarios",)
+    assert result["research_workflow"]["evidence"]
 
 
 def test_sidebar_theme_toggle_branch(app_auth: AppTest):

@@ -118,6 +118,27 @@ class TestSidebarQuickPicks:
         assert app_auth.session_state["symbol_input"] == "Infosys"
 
 
+class TestResearchWorkflowSetup:
+    def test_default_workflow_is_auto_select(self, app_auth: AppTest):
+        workflow = app_auth.selectbox(key="research_workflow_choice")
+        assert workflow.value == "Auto-select"
+
+    def test_decision_question_input_is_available(self, app_auth: AppTest):
+        question = app_auth.text_area(key="research_question")
+        assert question.label == "Decision or research question"
+        assert "current valuation" in question.placeholder
+
+    def test_valuation_shortcut_selects_workflow(self, app_auth: AppTest):
+        app_auth.button(key="workflow_shortcut_valuation").click().run(timeout=60)
+        assert app_auth.selectbox(key="research_workflow_choice").value == "Valuation scenarios"
+
+    def test_question_survives_rerun(self, app_auth: AppTest):
+        app_auth.text_area(key="research_question").set_value(
+            "What would invalidate the thesis?"
+        ).run(timeout=60)
+        assert app_auth.session_state["research_question"] == "What would invalidate the thesis?"
+
+
 class TestEmailGate:
     """Email gate tests. Skipped in beta mode since no email input is rendered."""
 

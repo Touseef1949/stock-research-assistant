@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from html import unescape
 from typing import Any
+from urllib.parse import urljoin
 
 try:
     import requests
@@ -146,6 +147,71 @@ def _extract_top_ratios(html: str) -> dict[str, float | None]:
                 ratios[label.lower().replace(" ", "_").replace("/", "_")] = _to_number(value_text)
                 break
     return ratios
+
+
+def _extract_document_links(html: str, base_url: str) -> dict[str, list[dict[str, str]]]:
+    """Extract primary-source document links surfaced by Screener."""
+    groups: dict[str, list[dict[str, str]]] = {
+        "transcripts": [],
+        "annual_reports": [],
+        "announcements": [],
+        "other": [],
+    }
+    section = _extract_section(html, "documents")
+    if not section:
+        return groups
+    seen: set[str] = set()
+    for href, body in re.findall(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>(.*?)</a>',
+        section,
+        flags=re.I | re.S,
+    ):
+        title = _strip_tags(body)
+        url = urljoin(base_url, unescape(href).strip())
+        haystack = f"{title} {url}".lower()
+        if not title or not url.startswith("http") or url in seen:
+            continue
+        if any(term in haystack for term in ("transcript", "concall", "conference call")):
+            category = "transcripts"
+        elif any(term in haystack for term in ("annual report", "annual-report")):
+            category = "annual_reports"
+        elif any(term in haystack for term in ("announcement", "bseindia", "nseindia")):
+            category = "announcements"
+        else:
+            category = "other"
+        groups[category].append({"title": title, "url": url})
+        seen.add(url)
+    return groups
+
+
+def _extract_peer_rows(html: str, base_url: str) -> list[dict[str, Any]]:
+    """Parse the public peer-comparison table while retaining its source links."""
+    section = _extract_section(html, "peers") or html
+    if not section:
+        return []
+    row_html = re.findall(r"<tr[^>]*>(.*?)</tr>", section, flags=re.I | re.S)
+    if not row_html:
+        return []
+    header_cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_html[0], flags=re.I | re.S)
+    headers = [_strip_tags(cell) for cell in header_cells]
+    peers: list[dict[str, Any]] = []
+    for row in row_html[1:]:
+        cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row, flags=re.I | re.S)
+        if len(cells) < 2:
+            continue
+        values = [_strip_tags(cell) for cell in cells]
+        link = re.search(r'href=["\']([^"\']+)["\']', row, flags=re.I)
+        record: dict[str, Any] = {}
+        for index, value in enumerate(values):
+            key = headers[index] if index < len(headers) and headers[index] else f"column_{index + 1}"
+            record[key] = _to_number(value) if index > 1 and _to_number(value) is not None else value
+        if link:
+            record["source_url"] = urljoin(base_url, unescape(link.group(1)))
+        company = values[1] if len(values) > 1 else ""
+        company_lower = company.lower()
+        if company and not company_lower.startswith(("median", "industry")):
+            peers.append(record)
+    return peers
 
 
 def _growth_from_series(values: list[float | None], years: int) -> float | None:
@@ -305,6 +371,19 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         shareholding_rows = _parse_table(shareholding_html)
         quarterly_rows = _parse_table(quarterly_html)
         top_ratios = _extract_top_ratios(html)
+        documents = _extract_document_links(html, final_url)
+        peers = _extract_peer_rows(html, final_url)
+        # Screener loads peer rows asynchronously. The public page exposes the
+        # warehouse id used by that same-origin endpoint.
+        if not peers:
+            warehouse_match = re.search(r'data-warehouse-id=["\'](\d+)["\']', html, flags=re.I)
+            if warehouse_match:
+                peers_url = urljoin(final_url, f"/api/company/{warehouse_match.group(1)}/peers/")
+                peer_ok, peer_html, peer_error = _fetch_html(peers_url, timeout=15)
+                if peer_ok:
+                    peers = _extract_peer_rows(peer_html, peers_url)
+                elif peer_error:
+                    warnings.append(peer_error)
 
         years = _extract_years(profit_loss_html, last_n=5)
         if not years:
@@ -430,6 +509,8 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
                 "dii_pct": dii,
                 "public_pct": public,
             },
+            "documents": documents,
+            "peers": peers,
         }
 
         if not sales and not net_profit:
