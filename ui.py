@@ -24,10 +24,23 @@ def page_header(title: str, subtitle: str) -> None:
     st.markdown(
         f"""
         <section class="page-header hero-card">
+            <div class="product-masthead">
+                <div class="product-mark" aria-hidden="true">SR</div>
+                <div class="product-identity">
+                    <strong>{_safe(title)}</strong>
+                    <span>Decision intelligence for Indian equities</span>
+                </div>
+                <div class="system-status"><i></i> NSE market data</div>
+            </div>
             <div class="hero-copy">
-                <div class="eyebrow">NSE equity intelligence dashboard</div>
-                <h1>Generate institution-style NSE research reports in minutes.</h1>
+                <div class="eyebrow">Research workspace</div>
+                <h1>From ticker to investment brief, in one workflow.</h1>
                 <p>{_safe(subtitle)}</p>
+                <div class="hero-proof" aria-label="Product capabilities">
+                    <span>5 specialist agents</span>
+                    <span>Source-traced evidence</span>
+                    <span>Export-ready reports</span>
+                </div>
             </div>
         </section>
         """,
@@ -61,12 +74,12 @@ def sample_report_preview(symbol: str = "") -> None:
         <section class="sample-report-preview" aria-label="Sample report preview">
             <div class="sample-report-head">
                 <div>
-                    <span class="sample-kicker">Sample report</span>
+                    <span class="sample-kicker">Report preview</span>
                     <h3>{sample_symbol} / {_safe(sample_name)}</h3>
-                    <p>Preview the kind of executive verdict generated after access verification.</p>
+                    <p>An illustrative sample of the decision brief. Generate a report for current, source-traced analysis.</p>
                 </div>
                 <div class="sample-verdict-card">
-                    <span>Verdict</span>
+                    <span>Sample verdict</span>
                     <strong>BUY</strong>
                     <small>Confidence 78%</small>
                 </div>
@@ -80,6 +93,12 @@ def sample_report_preview(symbol: str = "") -> None:
                     <span>Risk flag</span>
                     <strong>{_safe(risk)}</strong>
                 </article>
+            </div>
+            <div class="sample-report-sections" aria-label="Included report sections">
+                <span class="sample-report-section-pill">Executive brief</span>
+                <span class="sample-report-section-pill">Price &amp; valuation</span>
+                <span class="sample-report-section-pill">Risk flags</span>
+                <span class="sample-report-section-pill">Evidence audit</span>
             </div>
         </section>
         """,
