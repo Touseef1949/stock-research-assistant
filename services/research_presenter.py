@@ -9,42 +9,52 @@ WORKFLOW_CHOICES: dict[str, dict[str, str]] = {
     "Auto-select": {
         "command": "",
         "description": "Route the question to the narrowest relevant research workflow.",
+        "example": "What is priced in, and which evidence would change the view?",
     },
     "Stock snapshot": {
         "command": "/snapshot",
         "description": "Market, valuation, quality, momentum, and risk overview.",
+        "example": "What are the strongest and weakest signals right now?",
     },
     "Fundamental quality": {
         "command": "/fundamentals",
         "description": "Growth, profitability, capital efficiency, leverage, and financial quality.",
+        "example": "Is growth translating into durable cash returns?",
     },
     "Technical entry": {
         "command": "/entry",
         "description": "Trend, momentum, support/resistance, volatility, and entry conditions.",
+        "example": "Where is the entry attractive, and what price invalidates it?",
     },
     "Peer valuation": {
         "command": "/peers",
         "description": "Relative valuation with comparable companies and premium/discount logic.",
+        "example": "Why does this stock deserve its premium or discount to peers?",
     },
     "Valuation scenarios": {
         "command": "/valuation",
         "description": "Transparent bear, base, and bull valuation assumptions.",
+        "example": "What do bear, base, and bull cases imply from today's price?",
     },
     "Risk and governance": {
         "command": "/risks",
         "description": "Financial, market, governance, and evidence-quality risks.",
+        "example": "Which balance-sheet or governance risk could break the thesis?",
     },
     "Earnings deep dive": {
         "command": "/earnings",
         "description": "Reported results, guidance, operating drivers, and thesis changes.",
+        "example": "What changed in guidance, margins, and the thesis after results?",
     },
     "Catalyst monitor": {
         "command": "/catalysts",
         "description": "Recent evidence, upcoming events, catalyst windows, and monitoring triggers.",
+        "example": "Which dated catalysts could move the stock over the next 90 days?",
     },
     "Investment thesis": {
         "command": "/thesis",
         "description": "Bull/bear case, variant perception, catalysts, valuation, and falsifiers.",
+        "example": "What is the variant view, and what would falsify it?",
     },
 }
 

@@ -57,6 +57,12 @@ def test_workflow_choices_cover_all_shipped_user_workflows():
     } == set(WORKFLOW_CHOICES)
 
 
+def test_every_workflow_has_a_concise_question_example():
+    for choice in WORKFLOW_CHOICES.values():
+        assert choice["example"].endswith("?")
+        assert len(choice["example"]) <= 80
+
+
 def test_build_research_query_defaults_to_snapshot_without_question():
     assert build_research_query("TCS", "Auto-select", "") == "/snapshot TCS"
 

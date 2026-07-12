@@ -126,7 +126,15 @@ class TestResearchWorkflowSetup:
     def test_decision_question_input_is_available(self, app_auth: AppTest):
         question = app_auth.text_area(key="research_question")
         assert question.label == "Decision or research question"
-        assert "current valuation" in question.placeholder
+        assert "what is priced in" in question.placeholder.lower()
+
+    def test_question_example_tracks_selected_lens(self, app_auth: AppTest):
+        app_auth.selectbox(key="research_workflow_choice").select(
+            "Risk and governance"
+        ).run(timeout=60)
+
+        question = app_auth.text_area(key="research_question")
+        assert "governance risk" in question.placeholder.lower()
 
     def test_valuation_shortcut_selects_workflow(self, app_auth: AppTest):
         app_auth.button(key="workflow_shortcut_valuation").click().run(timeout=60)
