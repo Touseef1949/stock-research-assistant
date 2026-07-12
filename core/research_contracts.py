@@ -56,6 +56,21 @@ class ToolResult:
         payload["evidence"] = [item.to_dict() for item in self.evidence]
         return payload
 
+    def audit_dict(self) -> dict[str, Any]:
+        data_keys = sorted(str(key) for key in self.data.keys()) if isinstance(self.data, dict) else []
+        return {
+            "tool_name": self.tool_name,
+            "success": self.success,
+            "symbol": self.symbol,
+            "source": self.source,
+            "confidence": self.confidence,
+            "is_fallback": self.is_fallback,
+            "warnings": list(self.warnings),
+            "as_of": self.as_of,
+            "evidence_ids": [item.evidence_id for item in self.evidence],
+            "data_keys": data_keys,
+        }
+
 
 @dataclass(frozen=True)
 class RouteDecision:
@@ -97,12 +112,28 @@ class WorkflowResult:
     evidence: list[Evidence]
     warnings: list[str]
 
+    @staticmethod
+    def _audit_skill(skill: dict[str, Any]) -> dict[str, Any]:
+        procedure = str(skill.get("procedure") or "").strip()
+        excerpt = procedure[:280].strip()
+        if excerpt and len(procedure) > len(excerpt):
+            excerpt = f"{excerpt}..."
+        return {
+            "name": str(skill.get("name") or ""),
+            "description": str(skill.get("description") or ""),
+            "when_to_use": str(skill.get("when_to_use") or ""),
+            "command": str(skill.get("command") or ""),
+            "required_tools": [str(item) for item in skill.get("required_tools") or []],
+            "supporting_skills": [str(item) for item in skill.get("supporting_skills") or []],
+            "procedure_excerpt": excerpt,
+        }
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "route": self.route.to_dict(),
             "skill_catalog": self.skill_catalog,
-            "loaded_skills": self.loaded_skills,
-            "tool_results": [item.to_dict() for item in self.tool_results],
+            "loaded_skills": [self._audit_skill(item) for item in self.loaded_skills],
+            "tool_results": [item.audit_dict() for item in self.tool_results],
             "trace": [item.to_dict() for item in self.trace],
             "evidence": [item.to_dict() for item in self.evidence],
             "warnings": self.warnings,

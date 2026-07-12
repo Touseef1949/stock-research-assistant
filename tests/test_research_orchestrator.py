@@ -57,10 +57,9 @@ def test_workflow_without_api_key_uses_grounded_fallback():
     response = research_orchestrator.run_research_request(
         "/valuation TCS",
         market_data(),
-        base_result={"final_report": "Existing coordinated view."},
     )
     assert response.synthesis_mode == "fallback"
-    assert "Existing coordinated view" in response.answer
+    assert "Existing coordinated view" not in response.answer
     assert "Evidence-backed observations" in response.answer
     assert response.validation["valid"] is True
     assert any(event.event_type == "synthesis" for event in response.workflow.trace)
@@ -103,10 +102,17 @@ def test_validator_reports_unknown_and_missing_citations():
     workflow = research_orchestrator.prepare_research_workflow("/snapshot TCS", market_data())
     unknown = validate_evidence_citations("Price is 4000 [UNKNOWN].", workflow.evidence)
     missing = validate_evidence_citations("Price is 4000.", workflow.evidence)
+    prose = validate_evidence_citations(
+        "Management reiterated guidance and margin discipline.",
+        workflow.evidence,
+        require_citations=True,
+    )
     assert unknown["valid"] is False
     assert unknown["invalid_evidence_ids"] == ["UNKNOWN"]
     assert missing["valid"] is False
+    assert prose["valid"] is False
     assert "no evidence citations" in missing["warnings"][0]
+    assert "no evidence citations" in prose["warnings"][0]
 
 
 def test_direct_analysis_skips_expensive_agent_pipeline(monkeypatch):

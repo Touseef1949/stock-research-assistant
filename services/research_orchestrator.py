@@ -76,14 +76,10 @@ def _direct_answer(query: str, workflow: WorkflowResult) -> str:
 
 
 def _fallback_workflow_answer(
-    query: str,
     workflow: WorkflowResult,
-    base_result: dict[str, Any] | None,
 ) -> str:
     selected = ", ".join(workflow.route.skills) or workflow.route.direct_tool or "stock research"
     lines = [f"## {selected.replace('-', ' ').title()}"]
-    if base_result and base_result.get("final_report"):
-        lines.extend(["", str(base_result["final_report"]).strip()])
 
     observations = _scalar_evidence(workflow.evidence)[:14]
     if observations:
@@ -189,7 +185,6 @@ def run_research_request(
     query: str,
     market_data: dict[str, Any],
     api_key: str = "",
-    base_result: dict[str, Any] | None = None,
     workflow: WorkflowResult | None = None,
 ) -> ResearchResponse:
     """Execute routing/tools, synthesize the selected workflow, and validate it."""
@@ -203,24 +198,36 @@ def run_research_request(
             mode = "agent"
         except Exception as exc:
             workflow.warnings.append(f"Workflow synthesis fell back to deterministic mode: {exc}")
-            answer = _fallback_workflow_answer(query, workflow, base_result)
+            answer = _fallback_workflow_answer(workflow)
             mode = "fallback"
     else:
-        answer = _fallback_workflow_answer(query, workflow, base_result)
+        answer = _fallback_workflow_answer(workflow)
         mode = "fallback"
 
     workflow.trace.append(TraceEvent("synthesis", mode, "completed", "User-visible answer generated"))
-    validation = validate_evidence_citations(answer, workflow.evidence)
+    validation = validate_evidence_citations(
+        answer,
+        workflow.evidence,
+        require_citations=workflow.route.mode != "direct",
+    )
     if mode == "agent" and not validation["valid"]:
         workflow.warnings.append(
             "Agent synthesis did not pass evidence validation; deterministic grounded output was used."
         )
-        answer = _fallback_workflow_answer(query, workflow, base_result)
+        answer = _fallback_workflow_answer(workflow)
         mode = "fallback"
-        validation = validate_evidence_citations(answer, workflow.evidence)
+        validation = validate_evidence_citations(
+            answer,
+            workflow.evidence,
+            require_citations=workflow.route.mode != "direct",
+        )
     elif validation["invalid_evidence_ids"]:
         answer = _remove_invalid_citations(answer, validation["invalid_evidence_ids"])
-        validation = validate_evidence_citations(answer, workflow.evidence)
+        validation = validate_evidence_citations(
+            answer,
+            workflow.evidence,
+            require_citations=workflow.route.mode != "direct",
+        )
     workflow.trace.append(
         TraceEvent(
             "validation",
