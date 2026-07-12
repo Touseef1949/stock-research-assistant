@@ -3069,14 +3069,18 @@ def render_research_workflow_setup(symbol: str) -> str:
             key="research_workflow_choice",
             help="Auto-select routes your question; explicit workflows always take priority.",
         )
-        st.caption(WORKFLOW_CHOICES[selected]["description"])
+        selected_workflow = WORKFLOW_CHOICES[selected]
+        st.caption(selected_workflow["description"])
 
     with question_column:
         question = st.text_area(
             "Decision or research question",
             key="research_question",
-            placeholder="Example: Is the current valuation justified, and what would invalidate the thesis?",
-            help="The question is stored with this report and used to select or contextualize the workflow.",
+            placeholder=f"Example: {selected_workflow['example']}",
+            help=(
+                "Use the lens-specific example as a starting point. The question is stored "
+                "with this report and used to select or contextualize the workflow."
+            ),
             height=78,
         )
 
