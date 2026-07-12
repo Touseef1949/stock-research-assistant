@@ -253,7 +253,7 @@ class TestLoadMarketDataFallback:
                                        "data": {"ratios": {"current_price": 800, "market_cap": 500000}}})
         monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: 800)
 
-        from app import _market_data_from_screener
+        from services.market_data import _market_data_from_screener
         result = _market_data_from_screener("SBIN.NS")
         assert result["price"] == 800
         assert result["source"] == "screener_fallback"
@@ -264,7 +264,7 @@ class TestLoadMarketDataFallback:
                             lambda _: {"success": False, "warnings": ["blocked"]})
         monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: 102)
 
-        from app import _market_data_from_screener
+        from services.market_data import _market_data_from_screener
         result = _market_data_from_screener("SBIN.NS")
         assert result["price"] == 102
         assert result["source"] == "web_search_fallback"
@@ -275,7 +275,7 @@ class TestLoadMarketDataFallback:
                             lambda _: {"success": False, "warnings": ["blocked"]})
         monkeypatch.setattr("services.market_data._current_price_from_web_sources", lambda _: None)
 
-        from app import _market_data_from_screener
+        from services.market_data import _market_data_from_screener
         with pytest.raises(RuntimeError) as exc_info:
             _market_data_from_screener("SBIN.NS")
         msg = str(exc_info.value).lower()

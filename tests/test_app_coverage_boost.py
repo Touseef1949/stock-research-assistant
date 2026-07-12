@@ -97,6 +97,11 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
                 "rsi": 58,
                 "trend": "Uptrend",
                 "return_1y_pct": 15.2,
+                "support": 740.0,
+                "resistance": 760.0,
+                "ema20": 745.0,
+                "ema50": 735.0,
+                "volatility_60d_pct": 2.5,
             },
             "history": pd.DataFrame(
                 {
@@ -127,7 +132,6 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
 
         response = run_research_request(research_query or "/snapshot SBIN", data)
         result["base_report"] = result["final_report"]
-        result["final_report"] = response.answer
         result["research_request"] = research_query or "/snapshot SBIN"
         result["research_workflow"] = response.workflow.to_dict()
         result["research_validation"] = response.validation

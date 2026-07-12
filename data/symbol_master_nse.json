@@ -1,5 +1,5 @@
 {
-  "generated_at": 1782995592,
+  "generated_at": 1783822166,
   "records": [
     {
       "aliases": [],
@@ -159,7 +159,7 @@
       "isin": "INE01C001026",
       "name": "Aartech Solonics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "AARTECH"
     },
     {
@@ -201,6 +201,14 @@
       "previous_symbols": [],
       "series": "EQ",
       "symbol": "AARVI"
+    },
+    {
+      "aliases": [],
+      "isin": "INE2FMX01012",
+      "name": "Aastha Spintex Limited",
+      "previous_symbols": [],
+      "series": "BE",
+      "symbol": "AASTHA"
     },
     {
       "aliases": [],
@@ -750,6 +758,14 @@
     },
     {
       "aliases": [],
+      "isin": "INE1YPB01014",
+      "name": "Allcargo Global Limited",
+      "previous_symbols": [],
+      "series": "BE",
+      "symbol": "AGL"
+    },
+    {
+      "aliases": [],
       "isin": "INE449G01018",
       "name": "Agri-Tech (India) Limited",
       "previous_symbols": [],
@@ -1174,8 +1190,8 @@
     {
       "aliases": [
         "Pudumjee Pulp & Paper Mills Limited",
-        "Amj Land Holdings Limited",
-        "AMJ Land Holdings Limited"
+        "AMJ Land Holdings Limited",
+        "Amj Land Holdings Limited"
       ],
       "isin": "INE606A01024",
       "name": "Amj Land Holdings Limited",
@@ -2019,19 +2035,6 @@
       "symbol": "AUBANK"
     },
     {
-      "aliases": [
-        "Godha Cabcon & Insulation Limited",
-        "Auri Grow India Limited"
-      ],
-      "isin": "INE925Y01036",
-      "name": "Auri Grow India Limited",
-      "previous_symbols": [
-        "GODHA"
-      ],
-      "series": "EQ",
-      "symbol": "AURIGROW"
-    },
-    {
       "aliases": [],
       "isin": "INE132H01018",
       "name": "Aurionpro Solutions Limited",
@@ -2129,7 +2132,7 @@
       "isin": "INE680Z01018",
       "name": "AVG Logistics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "AVG"
     },
     {
@@ -2886,7 +2889,7 @@
       "isin": "INE561C01019",
       "name": "Bharat Gears Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "BHARATGEAR"
     },
     {
@@ -3122,7 +3125,7 @@
       "isin": "INE416D01022",
       "name": "Bliss GVS Pharma Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "BLISSGVS"
     },
     {
@@ -3429,7 +3432,7 @@
       "isin": "INE274K01012",
       "name": "Bhilwara Technical Textiles Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "BTTL"
     },
     {
@@ -4567,7 +4570,7 @@
       "isin": "INE497D01022",
       "name": "Damodar Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "DAMODARIND"
     },
     {
@@ -4655,7 +4658,7 @@
       "isin": "INE921B01025",
       "name": "DB (International) Stock Brokers Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "DBSTOCKBRO"
     },
     {
@@ -4833,7 +4836,7 @@
       "previous_symbols": [
         "EBIXFOREX"
       ],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "DELPHIFX"
     },
     {
@@ -5683,7 +5686,7 @@
       "isin": "INE753K01015",
       "name": "Emmbi Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "EMMBI"
     },
     {
@@ -6044,7 +6047,7 @@
       "isin": "INE0DNW01011",
       "name": "Fairchem Organics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "FAIRCHEMOR"
     },
     {
@@ -6487,10 +6490,18 @@
     },
     {
       "aliases": [],
+      "isin": "INE691Z20015",
+      "name": "Ganga Forging Ltd-RE",
+      "previous_symbols": [],
+      "series": "BE",
+      "symbol": "GANGAFO-RE"
+    },
+    {
+      "aliases": [],
       "isin": "INE691Z01023",
       "name": "Ganga Forging Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "GANGAFORGE"
     },
     {
@@ -6598,7 +6609,7 @@
       "previous_symbols": [
         "GWALCHEM"
       ],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "GEECEE"
     },
     {
@@ -6757,7 +6768,7 @@
       "isin": "INE424C01010",
       "name": "Ginni Filaments Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "GINNIFILA"
     },
     {
@@ -7180,7 +7191,7 @@
       "isin": "INE361K01017",
       "name": "Gradiente Infotainment Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "GRADIENTE"
     },
     {
@@ -7571,6 +7582,14 @@
       ],
       "series": "EQ",
       "symbol": "GVT&D"
+    },
+    {
+      "aliases": [],
+      "isin": "INE724A01017",
+      "name": "Gyftr Limited",
+      "previous_symbols": [],
+      "series": "EQ",
+      "symbol": "GYFTR"
     },
     {
       "aliases": [],
@@ -9291,7 +9310,7 @@
       "isin": "INE043C01018",
       "name": "IVP Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "IVP"
     },
     {
@@ -9798,8 +9817,8 @@
     {
       "aliases": [
         "Sona Koyo Steering Systems Limited",
-        "JTEKT India Limited",
-        "Jtekt India Limited"
+        "Jtekt India Limited",
+        "JTEKT India Limited"
       ],
       "isin": "INE643A01035",
       "name": "Jtekt India Limited",
@@ -10098,7 +10117,7 @@
       "isin": "INE234I01028",
       "name": "Kaushalya Infrastructure Development Corporation Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "KAUSHALYA"
     },
     {
@@ -10294,7 +10313,7 @@
       "isin": "INE729D01010",
       "name": "Kilitch Drugs (India) Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "KILITCH"
     },
     {
@@ -10432,6 +10451,14 @@
       "previous_symbols": [],
       "series": "EQ",
       "symbol": "KMSUGAR"
+    },
+    {
+      "aliases": [],
+      "isin": "INE17QZ01016",
+      "name": "Knack Packaging Limited",
+      "previous_symbols": [],
+      "series": "EQ",
+      "symbol": "KNACK"
     },
     {
       "aliases": [],
@@ -10639,7 +10666,7 @@
     },
     {
       "aliases": [],
-      "isin": "INE506W01012",
+      "isin": "INE506W01020",
       "name": "Krishana Phoschem Limited",
       "previous_symbols": [],
       "series": "EQ",
@@ -11204,7 +11231,7 @@
       "isin": "INE970D01010",
       "name": "Loyal Textile Mills Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "LOYALTEX"
     },
     {
@@ -11862,7 +11889,7 @@
       "isin": "INE885E01042",
       "name": "Mazda Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MAZDA"
     },
     {
@@ -11875,7 +11902,7 @@
     },
     {
       "aliases": [],
-      "isin": "INE900L01010",
+      "isin": "INE900L01028",
       "name": "Madhya Bharat Agro Products Limited",
       "previous_symbols": [],
       "series": "EQ",
@@ -12129,7 +12156,7 @@
       "isin": "INE287C01037",
       "name": "MIC Electronics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MICEL"
     },
     {
@@ -12612,7 +12639,7 @@
     },
     {
       "aliases": [],
-      "isin": "INE0JYY01011",
+      "isin": "INE0JYY01029",
       "name": "Mangalam Worldwide Limited",
       "previous_symbols": [],
       "series": "EQ",
@@ -12621,8 +12648,8 @@
     {
       "aliases": [
         "Nagarjuna Agrichem Limited",
-        "NACL Industries Limited",
-        "Nacl Industries Limited"
+        "Nacl Industries Limited",
+        "NACL Industries Limited"
       ],
       "isin": "INE295D01020",
       "name": "NACL Industries Limited",
@@ -12917,7 +12944,7 @@
       "isin": "INE553C01016",
       "name": "North Eastern Carrying Corporation Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "NECCLTD"
     },
     {
@@ -13557,7 +13584,7 @@
       "isin": "INE1BZC01019",
       "name": "Om Freight Forwarders Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "OMFREIGHT"
     },
     {
@@ -13642,7 +13669,7 @@
       "isin": "INE809I01019",
       "name": "OnMobile Global Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "ONMOBILE"
     },
     {
@@ -14740,7 +14767,7 @@
       "isin": "INE309M01020",
       "name": "Premier Polyfilm Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "PREMIERPOL"
     },
     {
@@ -17189,7 +17216,7 @@
       "isin": "INE979R01011",
       "name": "Shyam Century Ferrous Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "SHYAMCENT"
     },
     {
@@ -17266,7 +17293,7 @@
       "previous_symbols": [
         "MEGASOFT"
       ],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "SIGMAADV"
     },
     {
@@ -18434,7 +18461,7 @@
       "isin": "INE645H01027",
       "name": "Sutlej Textiles and Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "SUTLEJTEX"
     },
     {
@@ -20021,7 +20048,7 @@
       "previous_symbols": [
         "URAVI"
       ],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "URAVIDEF"
     },
     {
@@ -20185,7 +20212,7 @@
       "isin": "INE116G01013",
       "name": "Vardhman Acrylics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "VARDHACRLC"
     },
     {
@@ -20280,7 +20307,7 @@
       "isin": "INE232E01013",
       "name": "Veljan Denison Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "VELJAN"
     },
     {
@@ -20558,7 +20585,7 @@
       "isin": "INE946H01037",
       "name": "Vipul Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "VIPULLTD"
     },
     {

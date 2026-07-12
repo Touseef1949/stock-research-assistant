@@ -127,7 +127,7 @@ MOCK_SCREENER_HTML = """
 
 def test_load_market_data_with_mock_yfinance(monkeypatch):
     """Verify load_market_data works with mocked yfinance data."""
-    from app import load_market_data
+    from services.market_data import load_market_data
 
     mock_history = _make_mock_history()
 
@@ -196,7 +196,7 @@ def test_load_market_data_rate_limit_fallback(monkeypatch):
 
 def test_load_market_data_rate_limit_screener_fail_web_fallback(monkeypatch):
     """When Yahoo rate-limits and Screener fails, web-search fallback should still return data."""
-    from app import load_market_data
+    from services.market_data import load_market_data
     from yf_client import YFinanceRateLimitError
 
     # load_market_data is @st.cache_data; clear prior cached SBIN data from earlier tests.
@@ -225,7 +225,7 @@ def test_load_market_data_rate_limit_screener_fail_web_fallback(monkeypatch):
 
 def test_market_data_from_screener_falls_through_to_web(monkeypatch):
     """Screener failure should try the web fallback before raising."""
-    from app import _market_data_from_screener
+    from services.market_data import _market_data_from_screener
 
     monkeypatch.setattr(
         "services.market_data.fetch_screener_financials",
@@ -242,7 +242,7 @@ def test_market_data_from_screener_falls_through_to_web(monkeypatch):
 
 def test_all_sources_failed_error_is_not_classified_as_yahoo_rate_limit(monkeypatch):
     """All-source fallback failures should show honest error, not Yahoo-only rate-limit banner."""
-    from app import _market_data_from_screener
+    from services.market_data import _market_data_from_screener
     from yf_client import is_rate_limit_error
 
     monkeypatch.setattr(
@@ -263,7 +263,7 @@ def test_all_sources_failed_error_is_not_classified_as_yahoo_rate_limit(monkeypa
 
 def test_google_finance_parser_handles_current_markup(monkeypatch):
     """Google Finance current HTML exposes the live price in the main quote header."""
-    from app import _price_from_google_finance
+    from services.market_data import _price_from_google_finance
 
     html = (
         '<div class="gO24Ff">Reliance Industries Ltd</div></div>'
@@ -277,7 +277,7 @@ def test_google_finance_parser_handles_current_markup(monkeypatch):
 
 def test_google_finance_parser_ignores_unscoped_rupee_values(monkeypatch):
     """Do not grab random rupee values outside the main quote header."""
-    from app import _price_from_google_finance
+    from services.market_data import _price_from_google_finance
 
     html = '<div>Sensex ₹26,891.55</div><div>Target price ₹500</div>'
     monkeypatch.setattr("services.market_data._web_get_text", lambda url: html)
@@ -287,7 +287,7 @@ def test_google_finance_parser_ignores_unscoped_rupee_values(monkeypatch):
 
 def test_web_sources_do_not_use_ddgs_snippets(monkeypatch):
     """DDGS snippets are too noisy for prices and must not be in the automatic chain."""
-    from app import _current_price_from_web_sources
+    from services.market_data import _current_price_from_web_sources
 
     monkeypatch.setattr("services.market_data._price_from_google_finance", lambda sym: None)
     monkeypatch.setattr("services.market_data._price_from_nse_quote_api", lambda sym: None)

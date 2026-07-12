@@ -89,15 +89,15 @@ class TestGetDeepseekKey:
 
 class TestSafeRatioName:
     def test_valid_name(self):
-        from app import _safe_ratio_name
+        from services.market_data import _safe_ratio_name
         assert _safe_ratio_name("P/E Ratio") == "P/E Ratio"
 
     def test_none_name(self):
-        from app import _safe_ratio_name
+        from services.market_data import _safe_ratio_name
         assert _safe_ratio_name(None) == "Unknown"
 
     def test_empty_name(self):
-        from app import _safe_ratio_name
+        from services.market_data import _safe_ratio_name
         assert _safe_ratio_name("") == "Unknown"
 
 
@@ -127,7 +127,7 @@ class TestMarketDataSourceBadge:
 
 class TestSyntheticHistory:
     def test_creates_dataframe(self):
-        from app import _synthetic_history
+        from services.market_data import _synthetic_history
         import pandas as pd
         df = _synthetic_history(780.50)
         assert isinstance(df, pd.DataFrame)
@@ -149,7 +149,7 @@ class TestSyntheticHistory:
             return original_import(name, *args, **kwargs)
 
         monkeypatch.setattr(builtins, "__import__", fail_pandas)
-        from app import _synthetic_history
+        from services.market_data import _synthetic_history
         result = _synthetic_history(100.0)
         assert result is None
 

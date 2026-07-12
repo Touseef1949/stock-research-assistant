@@ -380,6 +380,7 @@ def test_render_deep_research_tab_placeholder_existing_and_run(monkeypatch):
 def test_run_analysis_and_agent_fallback(monkeypatch):
     import app
     import services.analysis_pipeline as ap
+    from services.analysis_pipeline import agent_or_fallback
 
     data = rich_market_data()
     local = rich_result(app)
@@ -394,25 +395,24 @@ def test_run_analysis_and_agent_fallback(monkeypatch):
     assert got_result["mode"] == "local"
 
     monkeypatch.setattr(ap, "run_agent", lambda agent, prompt, deps: "SCORE: 8/10\nLooks good")
-    ar = app.agent_or_fallback("Fundamentals", object(), "prompt", data, {})
+    ar = agent_or_fallback("Fundamentals", object(), "prompt", data, {})
     assert ar.source == "agent" and ar.score == 8
     monkeypatch.setattr(ap, "run_agent", lambda *a, **k: (_ for _ in ()).throw(ValueError("bad")))
-    ar = app.agent_or_fallback("Fundamentals", object(), "prompt", data, {})
+    ar = agent_or_fallback("Fundamentals", object(), "prompt", data, {})
     assert ar.source == "local" and "agent failed" in ar.content
 
 
 def test_web_price_source_helpers(monkeypatch):
-    import app
     import services.market_data as md
 
     # Google Finance success, parse miss, out-of-range, and exception paths.
     html = '<div class="gO24Ff">SBIN</div></div><div class="LhDNu"><x jsname="Pdsbrc"><span>₹ 780.50</span>'
     monkeypatch.setattr(md, "_web_get_text", lambda url, **kw: html)
-    assert app._price_from_google_finance("SBIN") == 780.50
+    assert md._price_from_google_finance("SBIN") == 780.50
     monkeypatch.setattr(md, "_web_get_text", lambda url, **kw: "no quote")
-    assert app._price_from_google_finance("SBIN") is None
+    assert md._price_from_google_finance("SBIN") is None
     monkeypatch.setattr(md, "_web_get_text", lambda url, **kw: (_ for _ in ()).throw(RuntimeError("net")))
-    assert app._price_from_google_finance("SBIN") is None
+    assert md._price_from_google_finance("SBIN") is None
 
     # NSE API success/miss/exception paths.
     calls = []
@@ -422,19 +422,19 @@ def test_web_price_source_helpers(monkeypatch):
             return json.dumps({"priceInfo": {"lastPrice": "790.25"}})
         return "home"
     monkeypatch.setattr(md, "_web_get_text", fake_web)
-    assert app._price_from_nse_quote_api("SBIN") == 790.25
+    assert md._price_from_nse_quote_api("SBIN") == 790.25
     monkeypatch.setattr(md, "_web_get_text", lambda url, **kw: "{}")
-    assert app._price_from_nse_quote_api("SBIN") is None
+    assert md._price_from_nse_quote_api("SBIN") is None
 
     # Current-source wrapper stops at first available source.
     monkeypatch.setattr(md, "_price_from_google_finance", lambda symbol: None)
     monkeypatch.setattr(md, "_price_from_nse_quote_api", lambda symbol: 123.0)
-    assert app._current_price_from_web_sources("SBIN.NS") == 123.0
-    assert app._current_price_from_web_search("SBIN.NS") == 123.0
+    assert md._current_price_from_web_sources("SBIN.NS") == 123.0
+    assert md._current_price_from_web_search("SBIN.NS") == 123.0
 
 
 def test_ddgs_snippet_price_paths(monkeypatch):
-    import app
+    import services.market_data as md
 
     class FakeDDGS:
         def __enter__(self):
@@ -447,13 +447,13 @@ def test_ddgs_snippet_price_paths(monkeypatch):
     mod = types.ModuleType("ddgs")
     mod.DDGS = FakeDDGS
     monkeypatch.setitem(sys.modules, "ddgs", mod)
-    assert app._price_from_ddgs_snippets("SBIN") == 801.35
+    assert md._price_from_ddgs_snippets("SBIN") == 801.35
 
     class BadDDGS(FakeDDGS):
         def text(self, *a, **k):
             raise RuntimeError("bad")
     mod.DDGS = BadDDGS
-    assert app._price_from_ddgs_snippets("SBIN") is None
+    assert md._price_from_ddgs_snippets("SBIN") is None
 
 
 def test_sidebar_auth_and_research_render_branches(monkeypatch):
