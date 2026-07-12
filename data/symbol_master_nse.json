@@ -1,5 +1,5 @@
 {
-  "generated_at": 1782029201,
+  "generated_at": 1782995592,
   "records": [
     {
       "aliases": [],
@@ -211,6 +211,19 @@
       "symbol": "AAVAS"
     },
     {
+      "aliases": [
+        "Aban Loyd Chiles Offshore Ltd.",
+        "Aban Offshore Limited"
+      ],
+      "isin": "INE421A01028",
+      "name": "Aban Offshore Limited",
+      "previous_symbols": [
+        "ABANLOYD"
+      ],
+      "series": "BE",
+      "symbol": "ABAN"
+    },
+    {
       "aliases": [],
       "isin": "INE365O01028",
       "name": "Abans Enterprises Limited",
@@ -356,7 +369,7 @@
       "isin": "INE648Z01023",
       "name": "Accuracy Shipping Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "ACCURACY"
     },
     {
@@ -905,7 +918,7 @@
       "isin": "INE542B01011",
       "name": "AksharChem India Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "AKSHARCHEM"
     },
     {
@@ -1962,7 +1975,7 @@
       "isin": "INE0Z4F01028",
       "name": "Atlanta Electricals Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "ATLANTAELE"
     },
     {
@@ -2572,7 +2585,7 @@
       "isin": "INE186H01022",
       "name": "Bannari Amman Spinning Mills Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "BASML"
     },
     {
@@ -3077,7 +3090,7 @@
       "isin": "INE761G01016",
       "name": "Black Rose Inds. Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "BLACKROSE"
     },
     {
@@ -3862,7 +3875,7 @@
       "isin": "INE03YM01018",
       "name": "Chemcon Speciality Chemicals Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "CHEMCON"
     },
     {
@@ -4215,6 +4228,14 @@
     },
     {
       "aliases": [],
+      "isin": "INE0LZF01013",
+      "name": "Waterways Leisure Tourism Limited",
+      "previous_symbols": [],
+      "series": "EQ",
+      "symbol": "CORDELIA"
+    },
+    {
+      "aliases": [],
       "isin": "INE792I01017",
       "name": "Cords Cable Industries Limited",
       "previous_symbols": [],
@@ -4397,6 +4418,14 @@
     },
     {
       "aliases": [],
+      "isin": "INE0ZK601013",
+      "name": "CSM Technologies Limited",
+      "previous_symbols": [],
+      "series": "BE",
+      "symbol": "CSM"
+    },
+    {
+      "aliases": [],
       "isin": "INE627H01017",
       "name": "Cambridge Technology Enterprises Limited",
       "previous_symbols": [],
@@ -4461,7 +4490,7 @@
       "isin": "INE214A01019",
       "name": "Cybertech Systems And Software Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "CYBERTECH"
     },
     {
@@ -4498,7 +4527,7 @@
       "isin": "INE928C01010",
       "name": "Dai-Ichi Karkaria Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "DAICHI"
     },
     {
@@ -5211,7 +5240,7 @@
       "isin": "INE864X01013",
       "name": "D P Wires Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "DPWIRES"
     },
     {
@@ -5435,7 +5464,7 @@
       "isin": "INE546V01010",
       "name": "Euro India Fresh Foods Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "EIFFL"
     },
     {
@@ -5933,7 +5962,7 @@
       "previous_symbols": [
         "ETERNEVRST"
       ],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "EVERESTIND"
     },
     {
@@ -6270,7 +6299,7 @@
       "isin": "INE593W01028",
       "name": "Focus Lighting and Fixtures Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "FOCUS"
     },
     {
@@ -7076,7 +7105,7 @@
       "isin": "INE805A01014",
       "name": "AION-TECH SOLUTIONS LIMITED",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "GOLDTECH"
     },
     {
@@ -7438,12 +7467,17 @@
       "symbol": "GUJAPOLLO"
     },
     {
-      "aliases": [],
+      "aliases": [
+        "Gujarat Gas Limited",
+        "GUJARAT ENERGY LIMITED"
+      ],
       "isin": "INE844O01030",
-      "name": "Gujarat Gas Limited",
-      "previous_symbols": [],
-      "series": "EQ",
-      "symbol": "GUJGASLTD"
+      "name": "GUJARAT ENERGY LIMITED",
+      "previous_symbols": [
+        "GUJGASLTD"
+      ],
+      "series": "BE",
+      "symbol": "GUJENERGY"
     },
     {
       "aliases": [],
@@ -7559,7 +7593,7 @@
       "isin": "INE506D01020",
       "name": "Haldyn Glass Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "HALDYNGL"
     },
     {
@@ -7795,6 +7829,7 @@
     },
     {
       "aliases": [
+        "Microsec Financial Services Limited",
         "Sastasundar Ventures Limited",
         "Health X Platform Limited"
       ],
@@ -7888,7 +7923,7 @@
       "isin": "INE0JUI01012",
       "name": "Hexagon Nutrition Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "HEXAGON"
     },
     {
@@ -8295,7 +8330,7 @@
       "isin": "INE965B01022",
       "name": "Hybrid Financial Services Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "HYBRIDFIN"
     },
     {
@@ -8771,7 +8806,7 @@
       "isin": "INE760F01028",
       "name": "Indo Amines Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "INDOAMIN"
     },
     {
@@ -10506,7 +10541,7 @@
       "isin": "INE0J0B01017",
       "name": "Kotyark Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "KOTYARK"
     },
     {
@@ -11281,7 +11316,7 @@
       "isin": "INE933A01014",
       "name": "Lyka Labs Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "LYKALABS"
     },
     {
@@ -11350,7 +11385,7 @@
       "isin": "INE378D01032",
       "name": "Madhucon Projects Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MADHUCON"
     },
     {
@@ -11406,7 +11441,7 @@
       "isin": "INE451L01014",
       "name": "Mahamaya Steel Industries Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "MAHASTEEL"
     },
     {
@@ -11985,7 +12020,7 @@
       "isin": "INE071D01033",
       "name": "Menon Bearings Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MENONBE"
     },
     {
@@ -12460,7 +12495,7 @@
       "isin": "INE864I01014",
       "name": "Mtar Technologies Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MTARTECH"
     },
     {
@@ -12516,7 +12551,7 @@
       "isin": "INE374B01019",
       "name": "Mukta Arts Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "MUKTAARTS"
     },
     {
@@ -12962,6 +12997,20 @@
       "previous_symbols": [],
       "series": "EQ",
       "symbol": "NETWORK18"
+    },
+    {
+      "aliases": [
+        "Sujana Tower Limited",
+        "Neueon Towers Limited",
+        "Neueon Corporation Limited"
+      ],
+      "isin": "INE333I01044",
+      "name": "Neueon Corporation Limited",
+      "previous_symbols": [
+        "NTL"
+      ],
+      "series": "BE",
+      "symbol": "NEUEON"
     },
     {
       "aliases": [],
@@ -13434,7 +13483,7 @@
       "isin": "INE054301028",
       "name": "Odigma Consultancy Solutions Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "ODIGMA"
     },
     {
@@ -13617,7 +13666,7 @@
       "isin": "INE231G01010",
       "name": "Orbit Exports Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "ORBTEXP"
     },
     {
@@ -14016,7 +14065,7 @@
       "isin": "INE529D01014",
       "name": "Patel Integrated Logistics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "PATINTLOG"
     },
     {
@@ -14545,7 +14594,7 @@
       "isin": "INE050001010",
       "name": "Prakash Pipes Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "PPL"
     },
     {
@@ -14569,7 +14618,7 @@
       "isin": "INE770A01010",
       "name": "Pradeep Metals Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "PRADPME"
     },
     {
@@ -14747,7 +14796,7 @@
       "isin": "INE583R01029",
       "name": "Pritika Auto Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "PRITIKAUTO"
     },
     {
@@ -15094,7 +15143,7 @@
       "isin": "INE535F01024",
       "name": "Rajoo Engineers Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "RAJOOENG"
     },
     {
@@ -15169,8 +15218,16 @@
       "isin": "INE230R01035",
       "name": "Rama Steel Tubes Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "RAMASTEEL"
+    },
+    {
+      "aliases": [],
+      "isin": "INE1SJO01012",
+      "name": "Advit Jewels Limited",
+      "previous_symbols": [],
+      "series": "BE",
+      "symbol": "RAMBHAJO"
     },
     {
       "aliases": [
@@ -15443,14 +15500,6 @@
     },
     {
       "aliases": [],
-      "isin": "INE206N20018",
-      "name": "Ravindra Energy Ltd-RE",
-      "previous_symbols": [],
-      "series": "BE",
-      "symbol": "RELTD-RE"
-    },
-    {
-      "aliases": [],
       "isin": "INE474C01023",
       "name": "Remsons Industries Limited",
       "previous_symbols": [],
@@ -15632,7 +15681,7 @@
       "isin": "INE655V01019",
       "name": "RMC Switchgears Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "RMC"
     },
     {
@@ -15985,7 +16034,7 @@
       "isin": "INE902B01017",
       "name": "S&S Power Switchgears Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "S&SPOWER"
     },
     {
@@ -16800,14 +16849,6 @@
     },
     {
       "aliases": [],
-      "isin": "INE482J20021",
-      "name": "Shah Metacorp Ltd-RE",
-      "previous_symbols": [],
-      "series": "BE",
-      "symbol": "SHAH-RE1"
-    },
-    {
-      "aliases": [],
       "isin": "INE640C01011",
       "name": "Shah Alloys Limited",
       "previous_symbols": [],
@@ -16938,7 +16979,7 @@
       "isin": "INE363M01019",
       "name": "Shemaroo Entertainment Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "SHEMAROO"
     },
     {
@@ -17112,9 +17153,12 @@
       "symbol": "SHRINGARMS"
     },
     {
-      "aliases": [],
+      "aliases": [
+        "Shriram Pistons & Rings Limited",
+        "SPR Auto Technologies Limited"
+      ],
       "isin": "INE526E01018",
-      "name": "Shriram Pistons & Rings Limited",
+      "name": "SPR Auto Technologies Limited",
       "previous_symbols": [],
       "series": "EQ",
       "symbol": "SHRIPISTON"
@@ -17177,7 +17221,7 @@
       "isin": "INE075B01020",
       "name": "Sical Logistics Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "SICALLOG"
     },
     {
@@ -17961,7 +18005,7 @@
       "isin": "INE334A01023",
       "name": "Sterling Tools Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "STERTOOLS"
     },
     {
@@ -18170,7 +18214,7 @@
       "isin": "INE073D01013",
       "name": "Sundaram Brake Linings Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "SUNDRMBRAK"
     },
     {
@@ -18590,7 +18634,7 @@
       "isin": "INE864J01012",
       "name": "Tamboli Industries Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "TAMBOLIIN"
     },
     {
@@ -19231,7 +19275,7 @@
       "previous_symbols": [
         "FORGE"
       ],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "TIRUPATIFL"
     },
     {
@@ -19587,6 +19631,14 @@
     },
     {
       "aliases": [],
+      "isin": "INE0OC301013",
+      "name": "Turtlemint Fintech Solutions Limited",
+      "previous_symbols": [],
+      "series": "EQ",
+      "symbol": "TURTLEMINT"
+    },
+    {
+      "aliases": [],
       "isin": "INE236G01019",
       "name": "TVS Electronics Limited",
       "previous_symbols": [],
@@ -19791,7 +19843,7 @@
       "isin": "INE240C01028",
       "name": "Usha Martin Education & Solutions Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "UMESLTD"
     },
     {
@@ -19914,7 +19966,7 @@
       "isin": "INE562X01013",
       "name": "Univastu India Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "UNIVASTU"
     },
     {
@@ -20030,7 +20082,7 @@
       "isin": "INE12UR01024",
       "name": "Fujiyama Power Systems Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "UTLSOLAR"
     },
     {
@@ -20117,7 +20169,7 @@
       "isin": "INE565V01010",
       "name": "Valiant Organics Limited",
       "previous_symbols": [],
-      "series": "EQ",
+      "series": "BE",
       "symbol": "VALIANTORG"
     },
     {
@@ -20125,7 +20177,7 @@
       "isin": "INE1CDF01017",
       "name": "Vedanta Aluminium Metal Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "VAML"
     },
     {
@@ -20207,7 +20259,7 @@
       "previous_symbols": [
         "VPL"
       ],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "VEDPOWER"
     },
     {
@@ -20559,7 +20611,7 @@
       "isin": "INE1CLE01013",
       "name": "Vedanta Iron and Steel Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "VISL"
     },
     {
@@ -20649,10 +20701,18 @@
     },
     {
       "aliases": [],
+      "isin": "INE0I0T01010",
+      "name": "Virtuoso Optoelectronics Limited",
+      "previous_symbols": [],
+      "series": "EQ",
+      "symbol": "VOEPL"
+    },
+    {
+      "aliases": [],
       "isin": "INE704J01044",
       "name": "Vedanta Oil and Gas Limited",
       "previous_symbols": [],
-      "series": "BE",
+      "series": "EQ",
       "symbol": "VOGL"
     },
     {

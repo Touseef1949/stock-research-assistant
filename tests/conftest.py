@@ -1,4 +1,5 @@
 """Force REQUIRE_AUTH to True during test runs so auth-path tests are deterministic."""
+
 import os
 import sys
 

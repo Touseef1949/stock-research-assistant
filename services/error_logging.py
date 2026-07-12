@@ -66,10 +66,9 @@ def get_recent_errors(limit: int = 20) -> list[dict]:
     """Return the most recent error entries from the log."""
     _ensure_log_dir()
 
-    if not LOG_FILE.exists():
-        return []
-
     try:
+        if not LOG_FILE.exists():
+            return []
         lines = LOG_FILE.read_text().strip().splitlines()
         entries = []
         for line in lines[-limit:]:
