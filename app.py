@@ -3792,12 +3792,17 @@ def render_research_audit(result: dict[str, Any]) -> None:
 
     loaded = workflow.get("loaded_skills") if isinstance(workflow, dict) else []
     if loaded:
-        with st.expander("Loaded skill procedures"):
+        with st.expander("Loaded skill details"):
             for skill in loaded:
                 if not isinstance(skill, dict):
                     continue
                 st.markdown(f"**{skill.get('name', 'Skill')}** — {skill.get('description', '')}")
-                st.markdown(str(skill.get("procedure") or ""))
+                required_tools = ", ".join(str(item) for item in skill.get("required_tools") or [])
+                if required_tools:
+                    st.caption(f"Required tools: {required_tools}")
+                excerpt = str(skill.get("procedure_excerpt") or skill.get("procedure") or "").strip()
+                if excerpt:
+                    st.markdown(excerpt)
 
 
 # ---------------------------------------------------------------------------

@@ -363,7 +363,6 @@ def run_analysis(
         workflow_query,
         data,
         api_key=api_key,
-        base_result=result,
     )
     result["base_report"] = result.get("final_report", "")
     result["final_report"] = research_response.answer

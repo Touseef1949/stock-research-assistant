@@ -154,6 +154,15 @@ def test_workflow_loads_skill_runs_tools_and_builds_auditable_trace():
     assert any(event.event_type == "tool" for event in result.trace)
 
 
+def test_workflow_dict_compacts_skill_and_tool_payloads():
+    result = prepare_research_workflow("/snapshot TCS", market_data())
+    payload = result.to_dict()
+    assert "procedure" not in payload["loaded_skills"][0]
+    assert payload["loaded_skills"][0]["procedure_excerpt"]
+    assert "data" not in payload["tool_results"][0]
+    assert payload["tool_results"][0]["data_keys"]
+
+
 def test_earnings_tools_execute_and_report_source_gaps_without_being_skipped():
     data = market_data()
     data["screener_data"] = {
@@ -227,7 +236,8 @@ def test_run_analysis_attaches_backward_compatible_workflow_metadata(monkeypatch
     )
 
     assert returned_data is data
-    assert "Existing report" in result["final_report"]
+    assert result["base_report"] == "Existing report"
+    assert "Evidence-backed observations" in result["final_report"]
     assert result["research_workflow"]["route"]["skills"] == ("stock-snapshot",)
     assert result["research_workflow"]["evidence"]
     assert result["research_validation"]["valid"] is True

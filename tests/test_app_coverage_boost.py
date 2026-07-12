@@ -123,7 +123,7 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
         }
         from services.research_orchestrator import run_research_request
 
-        response = run_research_request(research_query or "/snapshot SBIN", data, base_result=result)
+        response = run_research_request(research_query or "/snapshot SBIN", data)
         result["base_report"] = result["final_report"]
         result["final_report"] = response.answer
         result["research_request"] = research_query or "/snapshot SBIN"
