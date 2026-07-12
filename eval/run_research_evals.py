@@ -17,7 +17,6 @@ from core.research_router import route_research_query  # noqa: E402
 from core.skills import SkillRegistry  # noqa: E402
 from services.research_orchestrator import run_research_request  # noqa: E402
 
-
 CASES_PATH = Path(__file__).resolve().parent / "workflow_cases.yaml"
 
 
@@ -58,7 +57,11 @@ def _market_data() -> dict[str, Any]:
                 "profit_loss": {"sales": [400]},
                 "balance_sheet": {},
                 "cash_flow": {},
-                "documents": {"transcripts": [], "annual_reports": [], "announcements": []},
+                "documents": {
+                    "transcripts": [],
+                    "annual_reports": [],
+                    "announcements": [],
+                },
                 "peers": [],
             },
             "warnings": [],
@@ -141,7 +144,11 @@ def run_all_evals() -> dict[str, Any]:
     config = load_cases()
     routing = evaluate_routing(config)
     grounding = evaluate_grounding()
-    return {"passed": routing["passed"] and grounding["passed"], "routing": routing, "grounding": grounding}
+    return {
+        "passed": routing["passed"] and grounding["passed"],
+        "routing": routing,
+        "grounding": grounding,
+    }
 
 
 def main() -> int:

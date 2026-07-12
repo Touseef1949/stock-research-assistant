@@ -3,37 +3,40 @@
 Uses monkeypatched streamlit.markdown / streamlit_shadcn_ui wrappers.
 """
 
-from unittest.mock import MagicMock, call, patch
-
-import pytest
-
+from unittest.mock import MagicMock
 
 # ═══════════════════════════════════════════════════════════════════
 # ui.py helpers
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestSafe:
     def test_safe_escapes_html(self):
         from ui import _safe
+
         assert "&lt;script&gt;" in _safe("<script>alert(1)</script>")
         assert "&quot;" in _safe('"hello"')
 
     def test_safe_none(self):
         from ui import _safe
+
         assert _safe(None) == ""
 
     def test_safe_empty(self):
         from ui import _safe
+
         assert _safe("") == ""
 
     def test_safe_zero(self):
         from ui import _safe
+
         assert _safe(0) == ""
 
 
 class TestScoreTone:
     def test_healthy(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(8.0, 10.0)
         assert variant == "default"
         assert color == "#22c55e"
@@ -41,11 +44,13 @@ class TestScoreTone:
 
     def test_healthy_at_boundary(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(7.0, 10.0)
         assert state == "Healthy"
 
     def test_watch(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(5.5, 10.0)
         assert variant == "secondary"
         assert color == "#f59e0b"
@@ -53,11 +58,13 @@ class TestScoreTone:
 
     def test_watch_at_boundary(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(5.0, 10.0)
         assert state == "Watch"
 
     def test_weak(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(3.0, 10.0)
         assert variant == "destructive"
         assert color == "#ef4444"
@@ -65,6 +72,7 @@ class TestScoreTone:
 
     def test_zero_max_score(self):
         from ui import _score_tone
+
         variant, color, state = _score_tone(5.0, 0)
         assert state == "Weak"  # ratio = 0
 
@@ -73,11 +81,13 @@ class TestScoreTone:
 # ui.py render functions — monkeypatched streamlit
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestPageHeader:
     def test_calls_st_markdown(self, monkeypatch):
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import page_header
+
         page_header("Title", "Subtitle text")
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
@@ -92,6 +102,7 @@ class TestSampleReportPreview:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import sample_report_preview
+
         sample_report_preview("")
         html = mock_st.markdown.call_args[0][0]
         assert "INFY" in html
@@ -101,6 +112,7 @@ class TestSampleReportPreview:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import sample_report_preview
+
         sample_report_preview("SBIN")
         html = mock_st.markdown.call_args[0][0]
         assert "SBIN" in html
@@ -111,6 +123,7 @@ class TestSampleReportPreview:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import sample_report_preview
+
         sample_report_preview("RELIANCE")
         html = mock_st.markdown.call_args[0][0]
         assert "integrated operations" in html.lower() or "RELIANCE" in html
@@ -119,6 +132,7 @@ class TestSampleReportPreview:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import sample_report_preview
+
         sample_report_preview("TCS")
         html = mock_st.markdown.call_args[0][0]
         assert "TCS" in html
@@ -127,6 +141,7 @@ class TestSampleReportPreview:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import sample_report_preview
+
         sample_report_preview("UNKNOWN")
         html = mock_st.markdown.call_args[0][0]
         assert "UNKNOWN" in html
@@ -138,8 +153,14 @@ class TestExecutiveVerdictStrip:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import executive_verdict_strip
+
         data = {"base_symbol": "RELIANCE", "symbol": "RELIANCE.NS"}
-        result = {"composite": 7.5, "verdict": "BUY", "mode": "agent", "generated_at": "16 Jun 2026"}
+        result = {
+            "composite": 7.5,
+            "verdict": "BUY",
+            "mode": "agent",
+            "generated_at": "16 Jun 2026",
+        }
         executive_verdict_strip(data, result)
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
@@ -152,8 +173,14 @@ class TestExecutiveVerdictStrip:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import executive_verdict_strip
+
         data = {"symbol": "TCS.NS"}
-        result = {"composite": 5.0, "verdict": "HOLD", "mode": "local", "generated_at": ""}
+        result = {
+            "composite": 5.0,
+            "verdict": "HOLD",
+            "mode": "local",
+            "generated_at": "",
+        }
         executive_verdict_strip(data, result)
         html = mock_st.markdown.call_args[0][0]
         assert "TCS.NS" in html
@@ -162,6 +189,7 @@ class TestExecutiveVerdictStrip:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import executive_verdict_strip
+
         data: dict = {}
         result: dict = {}
         executive_verdict_strip(data, result)
@@ -176,6 +204,7 @@ class TestKpiCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import kpi_card
+
         kpi_card("P/E", "12.5", "Trailing", "📈")
         mock_shadcn.metric_card.assert_called_once()
         kwargs = mock_shadcn.metric_card.call_args[1]
@@ -189,6 +218,7 @@ class TestKpiCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import kpi_card
+
         kpi_card("Market Cap", "₹6,500 Cr")
         mock_shadcn.metric_card.assert_called_once()
         kwargs = mock_shadcn.metric_card.call_args[1]
@@ -202,6 +232,7 @@ class TestScoreCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import score_card
+
         score_card("Fundamentals", 7.8, 10.0)
         assert mock_shadcn.card.called
         assert mock_shadcn.badges.called
@@ -213,6 +244,7 @@ class TestScoreCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import score_card
+
         score_card("Test", 5.0, 10.0)
         html = mock_st.markdown.call_args[0][0]
         assert "width:50%" in html
@@ -223,6 +255,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("STRONG BUY")
         mock_shadcn.badges.assert_called_once()
         badges = mock_shadcn.badges.call_args[0][0]
@@ -233,6 +266,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("BUY")
         badges = mock_shadcn.badges.call_args[0][0]
         assert badges[0][1] == "default"
@@ -241,6 +275,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("HOLD")
         badges = mock_shadcn.badges.call_args[0][0]
         assert badges[0][1] == "secondary"
@@ -249,6 +284,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("SELL")
         badges = mock_shadcn.badges.call_args[0][0]
         assert badges[0][1] == "destructive"
@@ -257,6 +293,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("AVOID")
         badges = mock_shadcn.badges.call_args[0][0]
         assert badges[0][1] == "destructive"
@@ -265,6 +302,7 @@ class TestVerdictBadge:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import verdict_badge
+
         verdict_badge("weird status")
         badges = mock_shadcn.badges.call_args[0][0]
         assert badges[0][1] == "outline"
@@ -275,10 +313,16 @@ class TestStockHeaderCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import stock_header_card
+
         data = {
-            "exchange": "NSE", "symbol": "SBIN.NS", "base_symbol": "SBIN",
-            "name": "State Bank of India", "price": 780.50,
-            "change": 12.30, "change_pct": 1.60, "as_of": "16 Jun 2026",
+            "exchange": "NSE",
+            "symbol": "SBIN.NS",
+            "base_symbol": "SBIN",
+            "name": "State Bank of India",
+            "price": 780.50,
+            "change": 12.30,
+            "change_pct": 1.60,
+            "as_of": "16 Jun 2026",
         }
         stock_header_card(data)
         mock_st.markdown.assert_called_once()
@@ -291,10 +335,16 @@ class TestStockHeaderCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import stock_header_card
+
         data = {
-            "symbol": "TCS.NS", "base_symbol": "TCS", "name": "TCS",
-            "price": 3500.00, "change": -50.00, "change_pct": -1.41,
-            "exchange": "NSE", "as_of": "16 Jun 2026",
+            "symbol": "TCS.NS",
+            "base_symbol": "TCS",
+            "name": "TCS",
+            "price": 3500.00,
+            "change": -50.00,
+            "change_pct": -1.41,
+            "exchange": "NSE",
+            "as_of": "16 Jun 2026",
         }
         stock_header_card(data)
         html = mock_st.markdown.call_args[0][0]
@@ -305,10 +355,16 @@ class TestStockHeaderCard:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import stock_header_card
+
         data = {
-            "symbol": "TEST.NS", "base_symbol": "TEST", "name": "Test",
-            "price": 100.00, "change": 0.0, "change_pct": 0.0,
-            "exchange": "NSE", "as_of": "16 Jun 2026",
+            "symbol": "TEST.NS",
+            "base_symbol": "TEST",
+            "name": "Test",
+            "price": 100.00,
+            "change": 0.0,
+            "change_pct": 0.0,
+            "exchange": "NSE",
+            "as_of": "16 Jun 2026",
         }
         stock_header_card(data)
         html = mock_st.markdown.call_args[0][0]
@@ -320,6 +376,7 @@ class TestInfoAlert:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import info_alert
+
         info_alert("Something happened", "info")
         mock_shadcn.alert.assert_called_once()
         kwargs = mock_shadcn.alert.call_args[1]
@@ -329,6 +386,7 @@ class TestInfoAlert:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import info_alert
+
         info_alert("Warning!", "warning")
         kwargs = mock_shadcn.alert.call_args[1]
         assert "amber" in kwargs["class_name"]
@@ -337,6 +395,7 @@ class TestInfoAlert:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import info_alert
+
         info_alert("Error!", "error")
         kwargs = mock_shadcn.alert.call_args[1]
         assert "red" in kwargs["class_name"]
@@ -345,6 +404,7 @@ class TestInfoAlert:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import info_alert
+
         info_alert("Success!", "success")
         kwargs = mock_shadcn.alert.call_args[1]
         assert "emerald" in kwargs["class_name"]
@@ -353,6 +413,7 @@ class TestInfoAlert:
         mock_shadcn = MagicMock()
         monkeypatch.setattr("ui.shadcn", mock_shadcn)
         from ui import info_alert
+
         info_alert("Bogus", "bogus")
         kwargs = mock_shadcn.alert.call_args[1]
         assert "slate" in kwargs["class_name"]
@@ -363,6 +424,7 @@ class TestSectionTitle:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import section_title
+
         section_title("My Section")
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
@@ -375,6 +437,7 @@ class TestEmptyState:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import empty_state
+
         empty_state("Welcome", "Please enter a ticker")
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
@@ -386,6 +449,7 @@ class TestEmptyState:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import empty_state
+
         empty_state("How to use", "Follow these steps", ["Step 1", "Step 2", "Step 3"])
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]
@@ -400,6 +464,7 @@ class TestStatusPill:
         mock_st = MagicMock()
         monkeypatch.setattr("ui.st", mock_st)
         from ui import status_pill
+
         status_pill("Mode", "agent")
         mock_st.markdown.assert_called_once()
         html = mock_st.markdown.call_args[0][0]

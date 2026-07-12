@@ -6,7 +6,6 @@ from typing import Any, Callable
 
 from core.research_contracts import Evidence, ToolResult, utc_now_iso
 
-
 FALLBACK_SOURCES = {"screener_fallback", "web_search_fallback"}
 
 
@@ -36,7 +35,13 @@ def _confidence(data: dict[str, Any], technical: bool = False) -> str:
     return "high"
 
 
-def _result(tool_name: str, data: dict[str, Any], values: dict[str, Any], *, technical: bool = False) -> ToolResult:
+def _result(
+    tool_name: str,
+    data: dict[str, Any],
+    values: dict[str, Any],
+    *,
+    technical: bool = False,
+) -> ToolResult:
     source = _source(data)
     symbol = _symbol(data)
     confidence = _confidence(data, technical=technical)
@@ -45,7 +50,9 @@ def _result(tool_name: str, data: dict[str, Any], values: dict[str, Any], *, tec
     if source in FALLBACK_SOURCES:
         warnings.append(f"{tool_name} used fallback source: {source}")
     if technical and confidence == "low":
-        warnings.append("Technical conclusions are limited because reliable price history is insufficient.")
+        warnings.append(
+            "Technical conclusions are limited because reliable price history is insufficient."
+        )
     evidence = [
         Evidence(
             evidence_id=f"{symbol or 'UNKNOWN'}-{tool_name}-{index:03d}",
@@ -54,7 +61,11 @@ def _result(tool_name: str, data: dict[str, Any], values: dict[str, Any], *, tec
             source=source,
             as_of=as_of,
             confidence=confidence,
-            kind="market" if metric in {"price", "change", "change_pct", "market_cap"} else "calculated",
+            kind=(
+                "market"
+                if metric in {"price", "change", "change_pct", "market_cap"}
+                else "calculated"
+            ),
             warnings=tuple(warnings),
         )
         for index, (metric, value) in enumerate(values.items(), start=1)
@@ -94,8 +105,16 @@ def get_market_snapshot(data: dict[str, Any]) -> ToolResult:
 def get_fundamental_metrics(data: dict[str, Any]) -> ToolResult:
     f = data.get("fundamentals") or {}
     keys = (
-        "market_cap", "trailing_pe", "forward_pe", "price_to_book", "roe",
-        "revenue_growth", "profit_margins", "debt_to_equity", "dividend_yield", "beta",
+        "market_cap",
+        "trailing_pe",
+        "forward_pe",
+        "price_to_book",
+        "roe",
+        "revenue_growth",
+        "profit_margins",
+        "debt_to_equity",
+        "dividend_yield",
+        "beta",
     )
     return _result("get_fundamental_metrics", data, {key: f.get(key) for key in keys})
 
@@ -103,10 +122,21 @@ def get_fundamental_metrics(data: dict[str, Any]) -> ToolResult:
 def get_technical_metrics(data: dict[str, Any]) -> ToolResult:
     t = data.get("technicals") or {}
     keys = (
-        "trend", "rsi", "macd", "macd_signal", "ema20", "ema50", "support",
-        "resistance", "return_1y_pct", "max_drawdown_pct", "volatility_60d_pct",
+        "trend",
+        "rsi",
+        "macd",
+        "macd_signal",
+        "ema20",
+        "ema50",
+        "support",
+        "resistance",
+        "return_1y_pct",
+        "max_drawdown_pct",
+        "volatility_60d_pct",
     )
-    return _result("get_technical_metrics", data, {key: t.get(key) for key in keys}, technical=True)
+    return _result(
+        "get_technical_metrics", data, {key: t.get(key) for key in keys}, technical=True
+    )
 
 
 def evaluate_risk_flags(data: dict[str, Any]) -> ToolResult:

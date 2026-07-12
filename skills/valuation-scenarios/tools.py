@@ -18,7 +18,11 @@ def calculate_multiple_scenarios(
     if price <= 0 or metric <= 0:
         raise ValueError("Current price and forward metric must be positive.")
     scenarios = {}
-    for name, multiple in (("bear", bear_multiple), ("base", base_multiple), ("bull", bull_multiple)):
+    for name, multiple in (
+        ("bear", bear_multiple),
+        ("base", base_multiple),
+        ("bull", bull_multiple),
+    ):
         value = metric * float(multiple)
         scenarios[name] = {
             "multiple": float(multiple),

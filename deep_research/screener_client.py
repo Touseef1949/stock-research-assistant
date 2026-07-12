@@ -60,7 +60,12 @@ def _to_number(value: Any) -> float | None:
     text = text.replace("Cr.", "").replace("Cr", "").replace("x", "")
     # Convert "Lakhs" / "L" into crore-scale for consistency (1 Cr = 100 L).
     if re.search(r"\d+L$", text, re.I) or re.search(r"\d+\s+L$", text, re.I):
-        text = text.replace("L", "").replace("l", "").replace("Lakhs", "").replace("Lakh", "")
+        text = (
+            text.replace("L", "")
+            .replace("l", "")
+            .replace("Lakhs", "")
+            .replace("Lakh", "")
+        )
         match = re.search(r"[-+]?\d*\.?\d+", text)
         if match:
             return float(match.group(0)) / 100
@@ -108,7 +113,9 @@ def _parse_table(section_html: str) -> dict[str, list[float | None]]:
     return rows
 
 
-def _find_row(rows: dict[str, list[float | None]], aliases: list[str], last_n: int = 5) -> list[float | None]:
+def _find_row(
+    rows: dict[str, list[float | None]], aliases: list[str], last_n: int = 5
+) -> list[float | None]:
     for alias in aliases:
         alias_lower = alias.lower()
         for row_name, values in rows.items():
@@ -120,7 +127,11 @@ def _find_row(rows: dict[str, list[float | None]], aliases: list[str], last_n: i
 def _extract_years(section_html: str, last_n: int = 5) -> list[str]:
     headers = re.findall(r"<th[^>]*>(.*?)</th>", section_html or "", flags=re.I | re.S)
     labels = [_strip_tags(header) for header in headers]
-    labels = [label for label in labels if re.search(r"\d{4}|TTM|Mar|Dec|Sep|Jun", label, flags=re.I)]
+    labels = [
+        label
+        for label in labels
+        if re.search(r"\d{4}|TTM|Mar|Dec|Sep|Jun", label, flags=re.I)
+    ]
     return labels[-last_n:]
 
 
@@ -133,23 +144,37 @@ def _extract_top_ratios(html: str) -> dict[str, float | None]:
         if not text:
             continue
         known_labels = [
-            "Market Cap", "Current Price", "High / Low", "Stock P/E", "Book Value",
-            "Dividend Yield", "ROCE", "ROE", "Face Value", "Debt to equity",
-            "Interest Coverage", "Current Ratio", "PEG Ratio",
+            "Market Cap",
+            "Current Price",
+            "High / Low",
+            "Stock P/E",
+            "Book Value",
+            "Dividend Yield",
+            "ROCE",
+            "ROE",
+            "Face Value",
+            "Debt to equity",
+            "Interest Coverage",
+            "Current Ratio",
+            "PEG Ratio",
         ]
         for label in known_labels:
             lowered = text.lower()
             label_lower = label.lower()
             if lowered.startswith(label_lower):
-                value_text = text[len(label):]
+                value_text = text[len(label) :]
                 # Also accept labels with embedded currency symbols like '₹ 9,42,308 Cr.'
                 value_text = re.sub(r"^[\s:₹Rs.]+", "", value_text)
-                ratios[label.lower().replace(" ", "_").replace("/", "_")] = _to_number(value_text)
+                ratios[label.lower().replace(" ", "_").replace("/", "_")] = _to_number(
+                    value_text
+                )
                 break
     return ratios
 
 
-def _extract_document_links(html: str, base_url: str) -> dict[str, list[dict[str, str]]]:
+def _extract_document_links(
+    html: str, base_url: str
+) -> dict[str, list[dict[str, str]]]:
     """Extract primary-source document links surfaced by Screener."""
     groups: dict[str, list[dict[str, str]]] = {
         "transcripts": [],
@@ -171,7 +196,9 @@ def _extract_document_links(html: str, base_url: str) -> dict[str, list[dict[str
         haystack = f"{title} {url}".lower()
         if not title or not url.startswith("http") or url in seen:
             continue
-        if any(term in haystack for term in ("transcript", "concall", "conference call")):
+        if any(
+            term in haystack for term in ("transcript", "concall", "conference call")
+        ):
             category = "transcripts"
         elif any(term in haystack for term in ("annual report", "annual-report")):
             category = "annual_reports"
@@ -192,7 +219,9 @@ def _extract_peer_rows(html: str, base_url: str) -> list[dict[str, Any]]:
     row_html = re.findall(r"<tr[^>]*>(.*?)</tr>", section, flags=re.I | re.S)
     if not row_html:
         return []
-    header_cells = re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", row_html[0], flags=re.I | re.S)
+    header_cells = re.findall(
+        r"<t[dh][^>]*>(.*?)</t[dh]>", row_html[0], flags=re.I | re.S
+    )
     headers = [_strip_tags(cell) for cell in header_cells]
     peers: list[dict[str, Any]] = []
     for row in row_html[1:]:
@@ -203,8 +232,16 @@ def _extract_peer_rows(html: str, base_url: str) -> list[dict[str, Any]]:
         link = re.search(r'href=["\']([^"\']+)["\']', row, flags=re.I)
         record: dict[str, Any] = {}
         for index, value in enumerate(values):
-            key = headers[index] if index < len(headers) and headers[index] else f"column_{index + 1}"
-            record[key] = _to_number(value) if index > 1 and _to_number(value) is not None else value
+            key = (
+                headers[index]
+                if index < len(headers) and headers[index]
+                else f"column_{index + 1}"
+            )
+            record[key] = (
+                _to_number(value)
+                if index > 1 and _to_number(value) is not None
+                else value
+            )
         if link:
             record["source_url"] = urljoin(base_url, unescape(link.group(1)))
         company = values[1] if len(values) > 1 else ""
@@ -330,7 +367,12 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
     warnings: list[str] = []
     cleaned_symbol = _clean_symbol(symbol)
     if not cleaned_symbol:
-        return {"success": False, "source": "screener", "data": None, "warnings": ["Empty symbol supplied"]}
+        return {
+            "success": False,
+            "source": "screener",
+            "data": None,
+            "warnings": ["Empty symbol supplied"],
+        }
 
     urls = [
         f"{SCREENER_BASE}/{cleaned_symbol}/consolidated/",
@@ -353,7 +395,8 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
             "success": False,
             "source": "screener",
             "data": None,
-            "warnings": warnings or [f"Unable to fetch Screener page for {cleaned_symbol}"],
+            "warnings": warnings
+            or [f"Unable to fetch Screener page for {cleaned_symbol}"],
         }
 
     try:
@@ -376,9 +419,13 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         # Screener loads peer rows asynchronously. The public page exposes the
         # warehouse id used by that same-origin endpoint.
         if not peers:
-            warehouse_match = re.search(r'data-warehouse-id=["\'](\d+)["\']', html, flags=re.I)
+            warehouse_match = re.search(
+                r'data-warehouse-id=["\'](\d+)["\']', html, flags=re.I
+            )
             if warehouse_match:
-                peers_url = urljoin(final_url, f"/api/company/{warehouse_match.group(1)}/peers/")
+                peers_url = urljoin(
+                    final_url, f"/api/company/{warehouse_match.group(1)}/peers/"
+                )
                 peer_ok, peer_html, peer_error = _fetch_html(peers_url, timeout=15)
                 if peer_ok:
                     peers = _extract_peer_rows(peer_html, peers_url)
@@ -388,7 +435,9 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         years = _extract_years(profit_loss_html, last_n=5)
         if not years:
             years = [f"Year {index}" for index in range(1, 6)]
-            warnings.append("Could not parse fiscal year headers; using generic year labels")
+            warnings.append(
+                "Could not parse fiscal year headers; using generic year labels"
+            )
 
         sales = _find_row(pl_rows, ["Sales", "Revenue", "Net Sales"], 5)
         operating_profit = _find_row(pl_rows, ["Operating Profit", "EBITDA"], 5)
@@ -402,8 +451,18 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         receivables = _find_row(bs_rows, ["Trade Receivables", "Receivables"], 5)
         contingent_liabilities = _find_row(bs_rows, ["Contingent Liabilities"], 5)
 
-        ocf = _find_row(cf_rows, ["Cash from Operating Activity", "Operating Cash Flow", "Cash from Operations"], 5)
-        capex = _find_row(cf_rows, ["Fixed Assets Purchased", "Capital Expenditure", "Capex"], 5)
+        ocf = _find_row(
+            cf_rows,
+            [
+                "Cash from Operating Activity",
+                "Operating Cash Flow",
+                "Cash from Operations",
+            ],
+            5,
+        )
+        capex = _find_row(
+            cf_rows, ["Fixed Assets Purchased", "Capital Expenditure", "Capex"], 5
+        )
         fcf = []
         if ocf and capex:
             for ocf_value, capex_value in zip(ocf, capex):
@@ -415,7 +474,9 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
 
         roce_series = _find_row(ratio_rows, ["ROCE %", "ROCE"], 5)
         roe_series = _find_row(ratio_rows, ["ROE %", "Return on Equity", "ROE"], 5)
-        debt_equity_series = _find_row(ratio_rows, ["Debt to Equity", "Debt / Equity", "D/E"], 5)
+        debt_equity_series = _find_row(
+            ratio_rows, ["Debt to Equity", "Debt / Equity", "D/E"], 5
+        )
         interest_coverage_series = _find_row(ratio_rows, ["Interest Coverage"], 5)
         current_ratio_series = _find_row(ratio_rows, ["Current Ratio"], 5)
 
@@ -426,7 +487,9 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         pledged = _find_row(shareholding_rows, ["Pledged", "Promoter Pledge"], 4)
 
         quarterly_sales = _find_row(quarterly_rows, ["Sales", "Revenue"], 6)
-        quarterly_opm = _find_row(quarterly_rows, ["OPM %", "Operating Profit Margin"], 6)
+        quarterly_opm = _find_row(
+            quarterly_rows, ["OPM %", "Operating Profit Margin"], 6
+        )
 
         # ── Fallback: parse top ratios from the full HTML body if the <li> parser missed them.
         if not top_ratios.get("market_cap"):
@@ -456,10 +519,18 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
                 "operating_profit": operating_profit,
                 "opm_pct": opm,
                 "net_profit": net_profit,
-                "npm_pct": [
-                    (np_value / sales_value * 100) if np_value is not None and sales_value not in (None, 0) else None
-                    for np_value, sales_value in zip(net_profit, sales)
-                ] if net_profit and sales else [],
+                "npm_pct": (
+                    [
+                        (
+                            (np_value / sales_value * 100)
+                            if np_value is not None and sales_value not in (None, 0)
+                            else None
+                        )
+                        for np_value, sales_value in zip(net_profit, sales)
+                    ]
+                    if net_profit and sales
+                    else []
+                ),
                 "eps": eps,
             },
             "balance_sheet": {
@@ -475,11 +546,16 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
                 "free_cash_flow": fcf,
             },
             "ratios": {
-                "roce_pct": top_ratios.get("roce") or (roce_series[-1] if roce_series else None),
-                "roe_pct": top_ratios.get("roe") or (roe_series[-1] if roe_series else None),
-                "debt_to_equity": top_ratios.get("debt_to_equity") or (debt_equity_series[-1] if debt_equity_series else None),
-                "interest_coverage": top_ratios.get("interest_coverage") or (interest_coverage_series[-1] if interest_coverage_series else None),
-                "current_ratio": top_ratios.get("current_ratio") or (current_ratio_series[-1] if current_ratio_series else None),
+                "roce_pct": top_ratios.get("roce")
+                or (roce_series[-1] if roce_series else None),
+                "roe_pct": top_ratios.get("roe")
+                or (roe_series[-1] if roe_series else None),
+                "debt_to_equity": top_ratios.get("debt_to_equity")
+                or (debt_equity_series[-1] if debt_equity_series else None),
+                "interest_coverage": top_ratios.get("interest_coverage")
+                or (interest_coverage_series[-1] if interest_coverage_series else None),
+                "current_ratio": top_ratios.get("current_ratio")
+                or (current_ratio_series[-1] if current_ratio_series else None),
                 "market_cap": top_ratios.get("market_cap"),
                 "current_price": top_ratios.get("current_price"),
                 "stock_pe": top_ratios.get("stock_p_e"),
@@ -514,13 +590,21 @@ def fetch_screener_financials(symbol: str) -> dict[str, Any]:
         }
 
         if not sales and not net_profit:
-            warnings.append("Screener page loaded, but key P&L rows were not found; page markup may have changed")
+            warnings.append(
+                "Screener page loaded, but key P&L rows were not found; page markup may have changed"
+            )
 
-        return {"success": True, "source": "screener", "data": data, "warnings": warnings}
+        return {
+            "success": True,
+            "source": "screener",
+            "data": data,
+            "warnings": warnings,
+        }
     except Exception as exc:
         return {
             "success": False,
             "source": "screener",
             "data": None,
-            "warnings": warnings + [f"Screener parsing failed for {cleaned_symbol}: {exc}"],
+            "warnings": warnings
+            + [f"Screener parsing failed for {cleaned_symbol}: {exc}"],
         }

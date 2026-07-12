@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 import os
-import json
 import re
-import http.cookiejar
-import urllib.parse
-import urllib.request
 from html import escape
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -20,37 +15,17 @@ from logic import (
     resolve_ticker,
     suggest_tickers,
     ticker_not_found_message,
-    to_nse_symbol,
-    display_symbol,
-    clamp_score,
-    safe_float,
     money,
     number,
     pct,
-    compute_rsi,
-    compute_macd,
-    local_scores,
-    composite_score,
     verdict_for_score,
-    parse_score,
 )
 from yf_client import (
-    YFinanceRateLimitError,
     is_rate_limit_error,
-    ticker_history,
-    ticker_info,
 )
 
 from core.models import AgentResult, SCORE_ORDER
 from services.analysis_pipeline import (
-    fallback_result,
-    build_context,
-    run_agent,
-    agent_or_fallback,
-    run_agent_pipeline,
-    run_local_pipeline,
-    format_agent_outputs,
-    build_local_summary,
     get_agent_output,
     run_analysis,
 )
@@ -85,19 +60,9 @@ from ui import (
 
 from deep_research import run_deep_research
 from deep_research.report import build_enhanced_pdf
-from deep_research.screener_client import fetch_screener_financials
 from services import report_history as report_history_service
 from services.market_data import (
-    load_market_data,
     _market_data_source_badge,
-    _safe_ratio_name,
-    _synthetic_history,
-    _market_data_from_screener,
-    _price_from_google_finance,
-    _price_from_nse_quote_api,
-    _price_from_ddgs_snippets,
-    _current_price_from_web_sources,
-    _current_price_from_web_search,
 )
 from services.error_logging import log_error
 from services.research_presenter import (
@@ -263,7 +228,8 @@ def _inject_component_styles(theme: str) -> None:
             width: 2.3rem;
         }
         """
-        + ("""
+        + (
+            """
         /* Light theme adjustments — Ali Abdaal style */
         .sidebar-brand {
             background: #FFFFFF !important;
@@ -302,7 +268,10 @@ def _inject_component_styles(theme: str) -> None:
         .stButton button[kind="primary"] span {
             color: #FFFFFF !important;
         }
-        """ if is_light else ""),
+        """
+            if is_light
+            else ""
+        ),
         unsafe_allow_html=True,
     )
     # ── Comprehensive light-theme override for all dark hardcoded backgrounds ──
@@ -2720,6 +2689,7 @@ def _inject_mobile_sidebar_close_js() -> None:
     """JS to close sidebar when tapping outside it (on the scrim)."""
     try:
         import streamlit.components.v1 as components
+
         components.html(
             """
 <script>
@@ -2797,6 +2767,7 @@ def get_deepseek_key() -> str:
         return os.getenv("DEEPSEEK_API_KEY", "").strip()
     return os.getenv("DEEPSEEK_API_KEY", "").strip()
 
+
 def _clean_email(email: str) -> str:
     return (email or "").strip().lower()
 
@@ -2830,7 +2801,9 @@ def render_sidebar_access(interactive: bool = True) -> str:
         st.session_state["_otp_email"] = ""
 
     # ── 1. Restore persisted auth once per session ──
-    if not st.session_state.get("_auth_verified") and not st.session_state.get("user_email"):
+    if not st.session_state.get("_auth_verified") and not st.session_state.get(
+        "user_email"
+    ):
         persisted_email = load_auth()
         if persisted_email and get_user(persisted_email):
             st.session_state["_auth_verified"] = True
@@ -2845,7 +2818,11 @@ def render_sidebar_access(interactive: bool = True) -> str:
 
     # ── Non-interactive mode: nothing more to render ──
     if not interactive:
-        st.caption("Free during beta" if not REQUIRE_AUTH else "Sign in from the main page to start analysing stocks.")
+        st.caption(
+            "Free during beta"
+            if not REQUIRE_AUTH
+            else "Sign in from the main page to start analysing stocks."
+        )
         return st.session_state.user_email if is_authenticated() else ""
 
     # ── 3. Offline / dev-mode bypass ──
@@ -2864,7 +2841,9 @@ def render_sidebar_access(interactive: bool = True) -> str:
         if clean_email:
             save_auth(clean_email)
             st.success(f"Verified as {clean_email}")
-        st.caption("Dev mode: Supabase Auth is not configured, using session-only access.")
+        st.caption(
+            "Dev mode: Supabase Auth is not configured, using session-only access."
+        )
         return st.session_state.user_email
 
     # ── 4. Email input (sync widget state carefully) ──
@@ -2905,7 +2884,10 @@ def render_sidebar_access(interactive: bool = True) -> str:
             st.error("Could not send OTP. Check Supabase Auth settings and secrets.")
 
     # ── 6. Verify OTP ──
-    if st.session_state.get("_otp_sent") and st.session_state.get("_otp_email") == clean_email:
+    if (
+        st.session_state.get("_otp_sent")
+        and st.session_state.get("_otp_email") == clean_email
+    ):
         token = st.text_input(
             "OTP",
             value="",
@@ -2921,7 +2903,9 @@ def render_sidebar_access(interactive: bool = True) -> str:
         ):
             auth_response = verify_otp(clean_email, token)
             if auth_response:
-                st.session_state["_supabase_session"] = getattr(auth_response, "session", None)
+                st.session_state["_supabase_session"] = getattr(
+                    auth_response, "session", None
+                )
                 st.session_state["_auth_verified"] = True
                 st.session_state.user_email = clean_email
                 st.session_state["_otp_sent"] = False
@@ -2951,12 +2935,29 @@ def render_auth_gate() -> str:
     verified_email = _clean_email(st.session_state.get("user_email", ""))
     if is_authenticated() and verified_email:
         from payment import get_user, TIER_LIMITS
+
         user = get_user(verified_email)
-        plan = user.get("plan", "free") if isinstance(user, dict) else getattr(user, "plan", "free")
-        used = user.get("analyses_used", 0) if isinstance(user, dict) else st.session_state.get("_session_report_count", 0)
-        limit = user.get("analyses_limit", TIER_LIMITS["free"]) if isinstance(user, dict) else TIER_LIMITS["free"]
+        plan = (
+            user.get("plan", "free")
+            if isinstance(user, dict)
+            else getattr(user, "plan", "free")
+        )
+        used = (
+            user.get("analyses_used", 0)
+            if isinstance(user, dict)
+            else st.session_state.get("_session_report_count", 0)
+        )
+        limit = (
+            user.get("analyses_limit", TIER_LIMITS["free"])
+            if isinstance(user, dict)
+            else TIER_LIMITS["free"]
+        )
         st.success(f"✓ Verified as {verified_email}")
-        st.caption("Free during beta" if not REQUIRE_AUTH else f"{plan.upper()} plan · {used}/{limit} analyses used")
+        st.caption(
+            "Free during beta"
+            if not REQUIRE_AUTH
+            else f"{plan.upper()} plan · {used}/{limit} analyses used"
+        )
         return verified_email
 
     st.markdown(
@@ -3026,7 +3027,10 @@ def render_research_setup() -> str:
         if not resolved_preview.get("symbol") and suggestions:
             st.caption(
                 "Did you mean: "
-                + ", ".join(f"{item['symbol'].replace('.NS', '')} ({item['name']})" for item in suggestions)
+                + ", ".join(
+                    f"{item['symbol'].replace('.NS', '')} ({item['name']})"
+                    for item in suggestions
+                )
             )
 
     # ── Quick-pick row (horizontal on desktop, scrollable on mobile) ──
@@ -3036,7 +3040,9 @@ def render_research_setup() -> str:
             st.button(
                 f"{quick_symbol} · {name}",
                 key=f"quick_{quick_symbol}",
-                on_click=lambda s=quick_symbol: st.session_state.__setitem__("symbol_input", s),
+                on_click=lambda s=quick_symbol: st.session_state.__setitem__(
+                    "symbol_input", s
+                ),
                 use_container_width=True,
             )
 
@@ -3084,7 +3090,12 @@ def render_research_workflow_setup(symbol: str) -> str:
             height=78,
         )
 
-    common = ("Stock snapshot", "Fundamental quality", "Valuation scenarios", "Investment thesis")
+    common = (
+        "Stock snapshot",
+        "Fundamental quality",
+        "Valuation scenarios",
+        "Investment thesis",
+    )
     columns = st.columns(len(common))
     for column, label in zip(columns, common):
         with column:
@@ -3110,14 +3121,26 @@ def render_sidebar_sign_out() -> None:
         return
 
     st.divider()
-    st.button("Sign out", key="supabase_sign_out", use_container_width=True, on_click=_do_sign_out)
+    st.button(
+        "Sign out",
+        key="supabase_sign_out",
+        use_container_width=True,
+        on_click=_do_sign_out,
+    )
 
 
 def _do_sign_out() -> None:
     """Shared sign-out logic called by both sidebar and main-area sign-out buttons."""
     st.session_state.user_email = ""
     st.session_state["_auth_verified"] = False
-    for key in ("_auth_verified", "_supabase_session", "_otp_sent", "_otp_email", "_email_input", "_otp_input"):
+    for key in (
+        "_auth_verified",
+        "_supabase_session",
+        "_otp_sent",
+        "_otp_email",
+        "_email_input",
+        "_otp_input",
+    ):
         st.session_state.pop(key, None)
     clear_auth()
     client = get_supabase_client()
@@ -3139,7 +3162,9 @@ def render_main_sign_out() -> None:
         return
 
     st.markdown("---")
-    st.button("Sign out", key="main_sign_out", use_container_width=True, on_click=_do_sign_out)
+    st.button(
+        "Sign out", key="main_sign_out", use_container_width=True, on_click=_do_sign_out
+    )
 
 
 def _theme_toggle_callback() -> None:
@@ -3248,7 +3273,9 @@ def render_sidebar() -> tuple[str, str]:
     return email, symbol
 
 
-def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: Any) -> bytes:
+def build_report_pdf(
+    data: dict[str, Any], result: dict[str, Any], pdf_class: Any
+) -> bytes:
     """Build a branded, McKinsey-style multi-page PDF report."""
 
     def safe_text(value: Any, max_len: int | None = None) -> str:
@@ -3275,10 +3302,7 @@ def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: An
     WHITE = (255, 255, 255)
     LINE = (200, 205, 211)
 
-    scores = {
-        name: get_agent_output(result, data, name).score
-        for name in SCORE_ORDER
-    }
+    scores = {name: get_agent_output(result, data, name).score for name in SCORE_ORDER}
     generated_at = str(result.get("generated_at", data.get("as_of", "")))
     report_date = generated_at or date.today().strftime("%d %B %Y")
     verdict = str(result.get("verdict", "Unavailable"))
@@ -3318,7 +3342,9 @@ def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: An
             self.cell(
                 0,
                 5,
-                safe_text("Research aid - not investment advice. For internal use only."),
+                safe_text(
+                    "Research aid - not investment advice. For internal use only."
+                ),
                 align="L",
             )
             self.set_y(-14)
@@ -3439,7 +3465,15 @@ def build_report_pdf(data: dict[str, Any], result: dict[str, Any], pdf_class: An
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(70, 10, safe_text("Dimension"), border=0, align="L")
     pdf.cell(40, 10, safe_text("Score"), border=0, align="C")
-    pdf.cell(80, 10, safe_text("Assessment"), border=0, align="L", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        80,
+        10,
+        safe_text("Assessment"),
+        border=0,
+        align="L",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
     pdf.set_draw_color(*LINE)
     pdf.line(20, pdf.get_y(), 190, pdf.get_y())
     pdf.ln(2)
@@ -3517,8 +3551,14 @@ def build_report_text(data: dict[str, Any], result: dict[str, Any]) -> str:
     )
 
 
-def report_download_payload(data: dict[str, Any], result: dict[str, Any]) -> tuple[bytes, str, str]:
-    filename_base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(data.get("base_symbol") or data.get("symbol") or "stock_report")).strip("_")
+def report_download_payload(
+    data: dict[str, Any], result: dict[str, Any]
+) -> tuple[bytes, str, str]:
+    filename_base = re.sub(
+        r"[^A-Za-z0-9_-]+",
+        "_",
+        str(data.get("base_symbol") or data.get("symbol") or "stock_report"),
+    ).strip("_")
     try:
         from fpdf import FPDF
 
@@ -3536,7 +3576,9 @@ def render_stock_header(data: dict[str, Any]) -> None:
 def render_scorecards(outputs: dict[str, AgentResult]) -> None:
     cols = st.columns(4)
     for col, label in zip(cols, SCORE_ORDER):
-        result = outputs.get(label) or AgentResult(label, "No agent notes were returned.", 5.0, "local")
+        result = outputs.get(label) or AgentResult(
+            label, "No agent notes were returned.", 5.0, "local"
+        )
         with col:
             score_card(label, result.score, 10)
             st.caption(f"{result.source.title()} analysis")
@@ -3623,7 +3665,9 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
 
     workflow = result.get("research_workflow")
     overview = workflow_overview(workflow)
-    selected_workflow = ", ".join(overview["skills"]) or overview["direct_tool"] or "Legacy report"
+    selected_workflow = (
+        ", ".join(overview["skills"]) or overview["direct_tool"] or "Legacy report"
+    )
     source_text = ", ".join(overview["sources"]) or str(data.get("source") or "unknown")
     st.info(
         f"Research workflow: {selected_workflow} · {overview['evidence_count']} evidence records · "
@@ -3650,7 +3694,14 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
     ]
 
     overview_tab, chart_tab, agent_tab, metrics_tab, audit_tab, deep_tab = st.tabs(
-        ["Overview", "Price chart", "Agent breakdown", "Key metrics", "Research audit", "Deep Research"]
+        [
+            "Overview",
+            "Price chart",
+            "Agent breakdown",
+            "Key metrics",
+            "Research audit",
+            "Deep Research",
+        ]
     )
 
     with overview_tab:
@@ -3660,7 +3711,9 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
             with st.container(border=True):
                 st.markdown(result["final_report"])
             st.caption(_market_data_source_badge(data))
-            report_bytes, report_filename, report_mime = report_download_payload(data, result)
+            report_bytes, report_filename, report_mime = report_download_payload(
+                data, result
+            )
             st.download_button(
                 "📥 Download Report",
                 data=report_bytes,
@@ -3671,13 +3724,11 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
         with right:
             section_title("What to check next")
             with st.container(border=True):
-                st.markdown(
-                    """
+                st.markdown("""
                     - Validate the thesis against latest company filings and concall commentary.
                     - Compare valuation with sector peers before acting.
                     - Treat weak or fallback sentiment as a research gap, not a conclusion.
-                    """
-                )
+                    """)
 
     with chart_tab:
         section_title("Price Chart")
@@ -3724,14 +3775,20 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
                 st.write(f"**EMA50:** {number(t.get('ema50'))}")
                 st.write(f"**Support:** ₹{t.get('support'):.2f}")
                 st.write(f"**Resistance:** ₹{t.get('resistance'):.2f}")
-                st.write(f"**60D Volatility:** {number(t.get('volatility_60d_pct'), '%')}")
+                st.write(
+                    f"**60D Volatility:** {number(t.get('volatility_60d_pct'), '%')}"
+                )
 
     with audit_tab:
         render_research_audit(result)
 
     email = st.session_state.get("user_email", "")
     user = get_user(email) if email else None
-    plan = user.get("plan", "free") if isinstance(user, dict) else getattr(user, "plan", "free")
+    plan = (
+        user.get("plan", "free")
+        if isinstance(user, dict)
+        else getattr(user, "plan", "free")
+    )
 
     with deep_tab:
         if not REQUIRE_AUTH:
@@ -3745,6 +3802,7 @@ def render_result(data: dict[str, Any], result: dict[str, Any]) -> None:
             )
             st.info("Upgrade to Pro (₹199/mo) to unlock Deep Research.")
             from payment import _render_upgrade_ui
+
             _render_upgrade_ui(email, plan)
         else:
             render_deep_research_tab(data, result, data.get("symbol"))
@@ -3758,12 +3816,18 @@ def render_research_audit(result: dict[str, Any]) -> None:
     question = str(result.get("research_question") or "").strip()
     if question:
         st.markdown(f"**Decision context:** {question}")
-    selected = overview["skills"] or ([overview["direct_tool"]] if overview["direct_tool"] else [])
+    selected = overview["skills"] or (
+        [overview["direct_tool"]] if overview["direct_tool"] else []
+    )
     st.write(f"**Selected:** {', '.join(selected) or 'Unavailable'}")
     st.write(f"**Routing basis:** {overview['reason'] or 'Unavailable'}")
     st.write(f"**Sources:** {', '.join(overview['sources']) or 'Unavailable'}")
     st.write(f"**Synthesis mode:** {result.get('research_synthesis_mode', 'legacy')}")
-    validation = result.get("research_validation") if isinstance(result.get("research_validation"), dict) else {}
+    validation = (
+        result.get("research_validation")
+        if isinstance(result.get("research_validation"), dict)
+        else {}
+    )
     if validation:
         validation_state = "Passed" if validation.get("valid") else "Needs review"
         st.write(
@@ -3784,7 +3848,9 @@ def render_research_audit(result: dict[str, Any]) -> None:
 
     actions = trace_rows(workflow)
     section_title("Execution Trace")
-    st.caption("This lists selected skills, tools, quality gates, and sources—not hidden model reasoning.")
+    st.caption(
+        "This lists selected skills, tools, quality gates, and sources—not hidden model reasoning."
+    )
     if actions:
         st.dataframe(actions, use_container_width=True, hide_index=True)
     else:
@@ -3796,11 +3862,17 @@ def render_research_audit(result: dict[str, Any]) -> None:
             for skill in loaded:
                 if not isinstance(skill, dict):
                     continue
-                st.markdown(f"**{skill.get('name', 'Skill')}** — {skill.get('description', '')}")
-                required_tools = ", ".join(str(item) for item in skill.get("required_tools") or [])
+                st.markdown(
+                    f"**{skill.get('name', 'Skill')}** — {skill.get('description', '')}"
+                )
+                required_tools = ", ".join(
+                    str(item) for item in skill.get("required_tools") or []
+                )
                 if required_tools:
                     st.caption(f"Required tools: {required_tools}")
-                excerpt = str(skill.get("procedure_excerpt") or skill.get("procedure") or "").strip()
+                excerpt = str(
+                    skill.get("procedure_excerpt") or skill.get("procedure") or ""
+                ).strip()
                 if excerpt:
                     st.markdown(excerpt)
 
@@ -3883,19 +3955,23 @@ def _render_analyst_targets(section: dict) -> None:
     payload = section.get("data", {}) if isinstance(section, dict) else {}
     if section.get("warnings"):
         st.warning("\n".join(section.get("warnings", [])))
-    _deep_metric_row([
-        ("Current Price", payload.get("current_price")),
-        ("Mean Target", payload.get("target_mean_price")),
-        ("Upside / Downside %", payload.get("upside_downside_pct")),
-        ("Analyst Count", payload.get("number_of_analyst_opinions")),
-    ])
-    st.json({
-        "target_high_price": payload.get("target_high_price"),
-        "target_low_price": payload.get("target_low_price"),
-        "recommendation_key": payload.get("recommendation_key"),
-        "recommendation_mean": payload.get("recommendation_mean"),
-        "has_coverage": payload.get("has_coverage"),
-    })
+    _deep_metric_row(
+        [
+            ("Current Price", payload.get("current_price")),
+            ("Mean Target", payload.get("target_mean_price")),
+            ("Upside / Downside %", payload.get("upside_downside_pct")),
+            ("Analyst Count", payload.get("number_of_analyst_opinions")),
+        ]
+    )
+    st.json(
+        {
+            "target_high_price": payload.get("target_high_price"),
+            "target_low_price": payload.get("target_low_price"),
+            "recommendation_key": payload.get("recommendation_key"),
+            "recommendation_mean": payload.get("recommendation_mean"),
+            "has_coverage": payload.get("has_coverage"),
+        }
+    )
 
 
 def _render_financial_trends(section: dict) -> None:
@@ -3917,10 +3993,12 @@ def _render_risk_flags(section: dict) -> None:
     payload = section.get("data", {}) if isinstance(section, dict) else {}
     if section.get("warnings"):
         st.warning("\n".join(section.get("warnings", [])))
-    _deep_metric_row([
-        ("Triggered Flags", payload.get("total_flags")),
-        ("Checks Completed", payload.get("total_checked")),
-    ])
+    _deep_metric_row(
+        [
+            ("Triggered Flags", payload.get("total_flags")),
+            ("Checks Completed", payload.get("total_checked")),
+        ]
+    )
     _deep_data_frame(payload.get("flags", []))
 
 
@@ -3929,11 +4007,13 @@ def _render_valuation(section: dict) -> None:
     if section.get("warnings"):
         st.warning("\n".join(section.get("warnings", [])))
     fair = payload.get("fair_value_range", {}) or {}
-    _deep_metric_row([
-        ("Current Price", payload.get("current_price")),
-        ("Fair Value Base", fair.get("base")),
-        ("Upside %", payload.get("upside_pct")),
-    ])
+    _deep_metric_row(
+        [
+            ("Current Price", payload.get("current_price")),
+            ("Fair Value Base", fair.get("base")),
+            ("Upside %", payload.get("upside_pct")),
+        ]
+    )
     st.markdown("#### Fair Value Range")
     st.json(fair)
     st.markdown("#### Methods")
@@ -3942,19 +4022,25 @@ def _render_valuation(section: dict) -> None:
         st.markdown("#### DCF Sensitivity")
         rows = payload["sensitivity_table"]
         if len(rows) > 1:
-            st.dataframe(pd.DataFrame(rows[1:], columns=rows[0]), use_container_width=True, hide_index=True)
+            st.dataframe(
+                pd.DataFrame(rows[1:], columns=rows[0]),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 def _render_governance(section: dict) -> None:
     payload = section.get("data", {}) if isinstance(section, dict) else {}
     if section.get("warnings"):
         st.warning("\n".join(section.get("warnings", [])))
-    _deep_metric_row([
-        ("Governance Score", payload.get("governance_score")),
-        ("Promoter Holding", payload.get("promoter_holding")),
-        ("Pledged %", payload.get("pledged_pct")),
-        ("Promoter Trend", payload.get("promoter_trend")),
-    ])
+    _deep_metric_row(
+        [
+            ("Governance Score", payload.get("governance_score")),
+            ("Promoter Holding", payload.get("promoter_holding")),
+            ("Pledged %", payload.get("pledged_pct")),
+            ("Promoter Trend", payload.get("promoter_trend")),
+        ]
+    )
     if payload.get("flags"):
         st.markdown("#### Governance Flags")
         for item in payload.get("flags", []):
@@ -3984,7 +4070,9 @@ def _render_thesis(section: dict) -> None:
     st.write(payload.get("market_missing") or "Unavailable")
 
 
-def _render_enhanced_pdf(data: dict, quick_result: dict, deep_result: dict, symbol: str) -> None:
+def _render_enhanced_pdf(
+    data: dict, quick_result: dict, deep_result: dict, symbol: str
+) -> None:
     pdf_bytes = build_enhanced_pdf(data, quick_result, deep_result)
     st.download_button(
         label="Download Enhanced Deep Research PDF",
@@ -3996,13 +4084,19 @@ def _render_enhanced_pdf(data: dict, quick_result: dict, deep_result: dict, symb
 
 
 def _render_deep_placeholder() -> None:
-    st.info("Run Deep Research to populate these sections. The placeholders below keep the 5th tab shell visible before execution.")
+    st.info(
+        "Run Deep Research to populate these sections. The placeholders below keep the 5th tab shell visible before execution."
+    )
     for _, label in DEEP_RESEARCH_SECTIONS:
         with st.expander(label, expanded=False):
-            st.write("Pending. Click **Run Deep Research** above to generate this section.")
+            st.write(
+                "Pending. Click **Run Deep Research** above to generate this section."
+            )
 
 
-def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None = None) -> None:
+def render_deep_research_tab(
+    data: dict, quick_result: dict, symbol: str | None = None
+) -> None:
     if "deep_research" not in st.session_state:
         st.session_state["sra_deep_research"] = {}
 
@@ -4016,7 +4110,9 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
         return
 
     st.markdown("### Deep Research")
-    st.caption("Extended fundamentals, peers, analyst consensus, risk flags, valuation, governance, thesis, and enhanced PDF.")
+    st.caption(
+        "Extended fundamentals, peers, analyst consensus, risk flags, valuation, governance, thesis, and enhanced PDF."
+    )
 
     peer_text = st.text_input(
         "Optional peer tickers",
@@ -4028,10 +4124,19 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
 
     col_run, col_status = st.columns([1, 2])
     with col_run:
-        run_clicked = st.button("Run Deep Research", type="primary", use_container_width=True, key=f"run_deep_{active_symbol}")
+        run_clicked = st.button(
+            "Run Deep Research",
+            type="primary",
+            use_container_width=True,
+            key=f"run_deep_{active_symbol}",
+        )
     with col_status:
         existing = st.session_state["sra_deep_research"].get(active_symbol)
-        st.caption("Cached for this session." if existing else "No deep research result yet for this symbol.")
+        st.caption(
+            "Cached for this session."
+            if existing
+            else "No deep research result yet for this symbol."
+        )
 
     if run_clicked:
         api_key = _deep_get_api_key()
@@ -4041,7 +4146,9 @@ def render_deep_research_tab(data: dict, quick_result: dict, symbol: str | None 
             '<p class="analysis-wit">🧠 Deep Research engaged — pulling financials, analyst reports, risk flags, and peer data. This is thorough work.</p>',
             unsafe_allow_html=True,
         )
-        result = run_deep_research(active_symbol, data, api_key, peer_tickers=peer_tickers)
+        result = run_deep_research(
+            active_symbol, data, api_key, peer_tickers=peer_tickers
+        )
         st.session_state["sra_deep_research"][active_symbol] = result
         wit.empty()
         if result.get("warnings"):
@@ -4120,7 +4227,9 @@ def restore_dataframe(value: Any) -> pd.DataFrame:
     return report_history_service.restore_dataframe(value)
 
 
-def restore_report_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def restore_report_payload(
+    payload: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
     return report_history_service.restore_report_payload(payload)
 
 
@@ -4132,7 +4241,9 @@ def enforce_report_cap() -> None:
     report_history_service.enforce_report_cap(REPORTS_DIR, MAX_REPORT_FILES)
 
 
-def save_report(data: dict[str, Any], result: dict[str, Any], email: str = "") -> dict[str, str] | None:
+def save_report(
+    data: dict[str, Any], result: dict[str, Any], email: str = ""
+) -> dict[str, str] | None:
     return report_history_service.save_report(
         data,
         result,
@@ -4148,7 +4259,9 @@ def load_history_from_disk() -> None:
         st.session_state.sra_report_history = []
         st.session_state["_history_email"] = ""
         return
-    history = report_history_service.load_history_items(REPORTS_DIR, email, MAX_REPORT_FILES)
+    history = report_history_service.load_history_items(
+        REPORTS_DIR, email, MAX_REPORT_FILES
+    )
     if history is None:
         return
     st.session_state.sra_report_history = history
@@ -4253,15 +4366,12 @@ def render_analysis_progress_shell(active_label: str = "Resolving ticker") -> No
     for index, step in enumerate(steps):
         if step.lower() in label_lower or step.split()[0].lower() in label_lower:
             active_index = index
-    step_html = "".join(
-        f"""
+    step_html = "".join(f"""
         <div class="analysis-step {'is-active' if index == active_index else 'is-complete' if index < active_index else ''}">
             <b>{index + 1}</b>
             <span>{escape(step)}</span>
         </div>
-        """
-        for index, step in enumerate(steps)
-    )
+        """ for index, step in enumerate(steps))
     st.markdown(
         f"""
         <section class="analysis-progress-shell" aria-label="Analysis progress">
@@ -4328,7 +4438,10 @@ def main() -> None:
     api_key = get_deepseek_key()
     if not api_key:
         with st.sidebar:
-            info_alert("DEEPSEEK_API_KEY missing. Using yfinance-only local scoring.", "warning")
+            info_alert(
+                "DEEPSEEK_API_KEY missing. Using yfinance-only local scoring.",
+                "warning",
+            )
 
     if hero_analyze:
         st.session_state.sra_market_data = None
@@ -4350,7 +4463,7 @@ def main() -> None:
             label_placeholder.markdown(f"**Resolving ticker: {symbol} → {nse_symbol}**")
             wit_placeholder = st.empty()
             wit_placeholder.markdown(
-                f'<p class="analysis-wit">🔍 Finding the right ticker. Good analysis starts with the correct symbol.</p>',
+                '<p class="analysis-wit">🔍 Finding the right ticker. Good analysis starts with the correct symbol.</p>',
                 unsafe_allow_html=True,
             )
             progress_bar = st.progress(0)
@@ -4389,7 +4502,9 @@ def main() -> None:
                 resolved=resolved,
                 research_query=research_query,
             )
-            result["research_question"] = str(st.session_state.get("research_question") or "").strip()
+            result["research_question"] = str(
+                st.session_state.get("research_question") or ""
+            ).strip()
             progress_bar.progress(100)
             progress_bar.empty()
             label_placeholder.empty()

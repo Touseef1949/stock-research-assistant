@@ -10,7 +10,6 @@ from typing import Any
 
 import yaml
 
-
 DEFAULT_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 
@@ -86,7 +85,9 @@ class SkillRegistry:
             if not skill_file.is_file():
                 continue
             try:
-                front, body = parse_skill_markdown(skill_file.read_text(encoding="utf-8"))
+                front, body = parse_skill_markdown(
+                    skill_file.read_text(encoding="utf-8")
+                )
             except OSError:
                 continue
             name = str(front.get("name") or directory.name).strip()
@@ -140,7 +141,9 @@ class SkillRegistry:
         found: dict[str, Any] = {}
         if path.is_file():
             try:
-                spec = importlib.util.spec_from_file_location(f"research_skill_{skill.slug}", path)
+                spec = importlib.util.spec_from_file_location(
+                    f"research_skill_{skill.slug}", path
+                )
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)

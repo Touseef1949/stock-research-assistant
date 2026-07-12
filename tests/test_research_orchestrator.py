@@ -80,7 +80,10 @@ def test_invalid_agent_citation_forces_deterministic_fallback(monkeypatch):
     assert response.synthesis_mode == "fallback"
     assert "NOT-REAL" not in response.answer
     assert response.validation["valid"] is True
-    assert any("did not pass evidence validation" in warning for warning in response.workflow.warnings)
+    assert any(
+        "did not pass evidence validation" in warning
+        for warning in response.workflow.warnings
+    )
 
 
 def test_valid_agent_answer_is_preserved(monkeypatch):
@@ -99,7 +102,9 @@ def test_valid_agent_answer_is_preserved(monkeypatch):
 
 
 def test_validator_reports_unknown_and_missing_citations():
-    workflow = research_orchestrator.prepare_research_workflow("/snapshot TCS", market_data())
+    workflow = research_orchestrator.prepare_research_workflow(
+        "/snapshot TCS", market_data()
+    )
     unknown = validate_evidence_citations("Price is 4000 [UNKNOWN].", workflow.evidence)
     missing = validate_evidence_citations("Price is 4000.", workflow.evidence)
     prose = validate_evidence_citations(
@@ -121,7 +126,9 @@ def test_direct_analysis_skips_expensive_agent_pipeline(monkeypatch):
     monkeypatch.setattr(
         analysis_pipeline,
         "run_agent_pipeline",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("agent pipeline must not run")),
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("agent pipeline must not run")
+        ),
     )
     _data, result = analysis_pipeline.run_analysis(
         "TCS",

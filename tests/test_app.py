@@ -138,13 +138,19 @@ class TestResearchWorkflowSetup:
 
     def test_valuation_shortcut_selects_workflow(self, app_auth: AppTest):
         app_auth.button(key="workflow_shortcut_valuation").click().run(timeout=60)
-        assert app_auth.selectbox(key="research_workflow_choice").value == "Valuation scenarios"
+        assert (
+            app_auth.selectbox(key="research_workflow_choice").value
+            == "Valuation scenarios"
+        )
 
     def test_question_survives_rerun(self, app_auth: AppTest):
         app_auth.text_area(key="research_question").set_value(
             "What would invalidate the thesis?"
         ).run(timeout=60)
-        assert app_auth.session_state["research_question"] == "What would invalidate the thesis?"
+        assert (
+            app_auth.session_state["research_question"]
+            == "What would invalidate the thesis?"
+        )
 
 
 class TestEmailGate:
@@ -153,11 +159,15 @@ class TestEmailGate:
     @staticmethod
     def _skip_if_beta():
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no email gate rendered")
+
     def test_beta_no_email_gate(self, app: AppTest):
         """In beta mode, email gate is skipped and no _email_input is rendered."""
-        import importlib, payment
+        import importlib
+        import payment
+
         importlib.reload(payment)
         if not getattr(payment, "REQUIRE_AUTH", True):
             # In beta mode, email input should not render
@@ -170,6 +180,7 @@ class TestEmailGate:
     def test_email_input_renders(self, app: AppTest):
         """Email text input is present when auth is required."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no email input expected")
         email_input = app.text_input(key="_email_input")
@@ -178,6 +189,7 @@ class TestEmailGate:
     def test_confirm_email_button_renders(self, app: AppTest):
         """Send OTP button is present when auth is required."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no OTP button expected")
         btn = app.button(key="send_otp_button")
@@ -187,6 +199,7 @@ class TestEmailGate:
     def test_confirm_without_email_does_not_show_success(self, app: AppTest):
         """Clicking Send OTP when email is empty should NOT show success."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no email gate")
         # Ensure email is empty
@@ -195,33 +208,38 @@ class TestEmailGate:
         app.button(key="send_otp_button").click().run()
         # Should NOT show success for empty email
         success_messages = [s.value for s in app.success]
-        assert "OTP sent" not in str(success_messages), \
-            f"Got success for empty email: {success_messages}"
+        assert "OTP sent" not in str(
+            success_messages
+        ), f"Got success for empty email: {success_messages}"
 
     def test_confirm_without_email_shows_warning(self, app: AppTest):
         """Clicking Send OTP with empty email should show a warning/error."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no email gate")
         email_input = app.text_input(key="_email_input")
         email_input.set_value("").run()
         app.button(key="send_otp_button").click().run()
         # Should show some kind of error/warning
-        assert len(app.warning) > 0 or len(app.error) > 0, \
-            "Expected warning or error for empty email confirmation"
+        assert (
+            len(app.warning) > 0 or len(app.error) > 0
+        ), "Expected warning or error for empty email confirmation"
 
     # ── Invalid email ──
     def test_confirm_invalid_email_no_at_sign(self, app: AppTest):
         """Invalid email (no @) should not confirm."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — no email gate")
         email_input = app.text_input(key="_email_input")
         email_input.set_value("invalid-email").run()
         app.button(key="send_otp_button").click().run()
         success_messages = [s.value for s in app.success]
-        assert "OTP sent" not in str(success_messages), \
-            f"Confirmed invalid email: {success_messages}"
+        assert "OTP sent" not in str(
+            success_messages
+        ), f"Confirmed invalid email: {success_messages}"
 
     def test_confirm_invalid_email_shows_error(self, app: AppTest):
         """Invalid email should show error message."""
@@ -241,8 +259,9 @@ class TestEmailGate:
         app.text_input(key="_otp_input").set_value("123456").run()
         app.button(key="verify_otp_button").click().run()
         success_messages = [s.value for s in app.success]
-        assert any("Verified as test@example.com" in str(m) for m in success_messages), \
-            f"Expected success for valid email, got: {success_messages}"
+        assert any(
+            "Verified as test@example.com" in str(m) for m in success_messages
+        ), f"Expected success for valid email, got: {success_messages}"
 
     def test_confirm_valid_email_shows_plan_info(self, app: AppTest):
         """Valid email confirmation should show plan info."""
@@ -256,8 +275,9 @@ class TestEmailGate:
         captions = [c.value for c in app.caption]
         markdowns = [m.value for m in app.markdown]
         all_text = str(captions) + str(markdowns) + str([s.value for s in app.success])
-        assert any(word in all_text.lower() for word in ["free", "pro", "plan"]), \
-            f"Expected plan info, got: {all_text[:200]}"
+        assert any(
+            word in all_text.lower() for word in ["free", "pro", "plan"]
+        ), f"Expected plan info, got: {all_text[:200]}"
 
     # ── Whitespace handling ──
     def test_confirm_whitespace_only_email_fails(self, app: AppTest):
@@ -267,8 +287,9 @@ class TestEmailGate:
         email_input.set_value("   ").run()
         app.button(key="send_otp_button").click().run()
         # Should show a warning about invalid/empty email
-        assert len(app.warning) > 0 or len(app.error) > 0, \
-            f"Expected warning/error for whitespace email, got none"
+        assert (
+            len(app.warning) > 0 or len(app.error) > 0
+        ), "Expected warning/error for whitespace email, got none"
 
     def test_confirm_email_with_surrounding_spaces_works(self, app: AppTest):
         """Email with surrounding spaces should be trimmed and work."""
@@ -279,8 +300,9 @@ class TestEmailGate:
         app.text_input(key="_otp_input").set_value("123456").run()
         app.button(key="verify_otp_button").click().run()
         success_messages = [s.value for s in app.success]
-        assert any("Verified as test@example.com" in str(m) for m in success_messages), \
-            f"Expected confirmation for space-padded email"
+        assert any(
+            "Verified as test@example.com" in str(m) for m in success_messages
+        ), "Expected confirmation for space-padded email"
 
     # ── Re-confirm / state persistence ──
     def test_email_confirmed_persists_across_rerun(self, app: AppTest):
@@ -294,8 +316,9 @@ class TestEmailGate:
         # Rerun without clicking again
         app.run()
         success_messages = [s.value for s in app.success]
-        assert any("Verified as persist@test.com" in str(m) for m in success_messages), \
-            "Email confirmation did not persist after rerun"
+        assert any(
+            "Verified as persist@test.com" in str(m) for m in success_messages
+        ), "Email confirmation did not persist after rerun"
 
     # ── Email change resets confirmation ──
     def test_changing_email_resets_confirmation(self, app: AppTest):
@@ -309,11 +332,10 @@ class TestEmailGate:
         # Now change email
         email_input.set_value("second@test.com").run()
         # After email change, confirmation should reset
-        success_messages = [s.value for s in app.success]
+        [s.value for s in app.success]
         # Should NOT still show "Email confirmed" without re-clicking
         # (This depends on implementation - the email change triggers rerun in render_email_gate)
         # At minimum, the previous confirmation was for a different email
-
 
     # ── Verify then generate ──
     # ── Verify then generate: session state must survive any rerun ──
@@ -338,8 +360,9 @@ class TestEmailGate:
 
         # And no warning asking to enter email should appear.
         warning_texts = [w.value for w in app.warning]
-        assert "Enter your email" not in str(warning_texts), \
-            f"Email was lost after rerun: warnings={warning_texts}"
+        assert "Enter your email" not in str(
+            warning_texts
+        ), f"Email was lost after rerun: warnings={warning_texts}"
 
 
 class TestAnalyzeButton:
@@ -351,19 +374,23 @@ class TestAnalyzeButton:
     def test_analyze_button_hidden_when_unauthenticated(self, app: AppTest):
         """Hero CTA is gated behind auth — not visible to unauthenticated users."""
         import payment
+
         if not getattr(payment, "REQUIRE_AUTH", True):
             pytest.skip("Beta mode — analyze button is always visible")
         with pytest.raises(KeyError):
             app.button(key="hero_analyze_button")
 
-    @pytest.mark.skip(reason="AppTest st.stop() incompatible with network-heavy app; validate manually")
+    @pytest.mark.skip(
+        reason="AppTest st.stop() incompatible with network-heavy app; validate manually"
+    )
     def test_analyze_without_email_shows_warning(self, app: AppTest):
         """Clicking Analyze without email should show a warning."""
         btn = app.button(key="hero_analyze_button")
         btn.click().run()
         # Should show a warning about entering email (from require_payment)
-        assert len(app.warning) > 0, \
-            f"Expected warning when analyzing without email, got warnings={[w.value for w in app.warning]}"
+        assert (
+            len(app.warning) > 0
+        ), f"Expected warning when analyzing without email, got warnings={[w.value for w in app.warning]}"
 
 
 class TestEmptyState:
@@ -380,17 +407,22 @@ class TestEmptyState:
 # Callback-based button tests (Step 2 coverage)
 # =============================================================================
 
+
 class TestSignOutCallback:
     """Sign-out uses on_click=_do_sign_out — testable without st.rerun()."""
 
-    @pytest.mark.skip(reason="sign-out callback requires live Supabase client mock — covered by unit tests")
+    @pytest.mark.skip(
+        reason="sign-out callback requires live Supabase client mock — covered by unit tests"
+    )
     def test_sidebar_sign_out_resets_auth(self, app_auth: AppTest):
         """Clicking sidebar sign-out clears auth state via callback."""
         btn = app_auth.button(key="supabase_sign_out")
         btn.click().run(timeout=30)
         assert app_auth.session_state["_auth_verified"] is not True
 
-    @pytest.mark.skip(reason="sign-out callback requires live Supabase client mock — covered by unit tests")
+    @pytest.mark.skip(
+        reason="sign-out callback requires live Supabase client mock — covered by unit tests"
+    )
     def test_main_sign_out_resets_auth(self, app_auth: AppTest):
         """Clicking main-area sign-out clears auth state via callback."""
         btn = app_auth.button(key="main_sign_out")

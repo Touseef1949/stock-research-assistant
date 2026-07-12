@@ -10,7 +10,6 @@ from deep_research.screener_client import _extract_document_links, _extract_peer
 from research_tools import external_research
 from services import document_client
 
-
 SCREENER_URL = "https://www.screener.in/company/TCS/consolidated/"
 
 
@@ -34,7 +33,10 @@ def screener_result() -> dict:
                     }
                 ],
                 "annual_reports": [
-                    {"title": "Annual Report 2026", "url": "https://www.screener.in/annual-report.pdf"}
+                    {
+                        "title": "Annual Report 2026",
+                        "url": "https://www.screener.in/annual-report.pdf",
+                    }
                 ],
                 "announcements": [],
             },
@@ -72,7 +74,10 @@ def test_screener_parser_extracts_documents_by_category():
     """
     documents = _extract_document_links(html, SCREENER_URL)
     assert documents["transcripts"][0]["title"] == "Q1 Concall Transcript"
-    assert documents["annual_reports"][0]["url"] == "https://www.screener.in/annual-report.pdf"
+    assert (
+        documents["annual_reports"][0]["url"]
+        == "https://www.screener.in/annual-report.pdf"
+    )
     assert documents["announcements"]
 
 
@@ -112,7 +117,10 @@ def test_peer_metrics_excludes_target_security_from_comparables():
     data = market_data()
     data["screener_data"]["data"]["peers"].insert(
         0,
-        {"Name": "TCS", "source_url": "https://www.screener.in/company/TCS/consolidated/"},
+        {
+            "Name": "TCS",
+            "source_url": "https://www.screener.in/company/TCS/consolidated/",
+        },
     )
     result = external_research.get_peer_metrics(data)
     assert [peer["Name"] for peer in result.data["peers"]] == ["Infosys"]
@@ -147,9 +155,20 @@ def test_transcript_tool_returns_specific_gap_when_link_missing():
 
 
 def test_document_client_rejects_unapproved_or_insecure_urls():
-    assert document_client.fetch_document_text("http://www.bseindia.com/file.pdf")["success"] is False
-    assert document_client.fetch_document_text("https://127.0.0.1/file.pdf")["success"] is False
-    assert document_client.fetch_document_text("https://example.com/file.pdf")["success"] is False
+    assert (
+        document_client.fetch_document_text("http://www.bseindia.com/file.pdf")[
+            "success"
+        ]
+        is False
+    )
+    assert (
+        document_client.fetch_document_text("https://127.0.0.1/file.pdf")["success"]
+        is False
+    )
+    assert (
+        document_client.fetch_document_text("https://example.com/file.pdf")["success"]
+        is False
+    )
 
 
 def test_document_client_extracts_bounded_html(monkeypatch):
@@ -159,7 +178,9 @@ def test_document_client_extracts_bounded_html(monkeypatch):
         content=b"<html><body><h1>Concall</h1><p>Guidance raised.</p></body></html>",
         raise_for_status=lambda: None,
     )
-    monkeypatch.setattr(document_client.requests, "get", lambda *args, **kwargs: response)
+    monkeypatch.setattr(
+        document_client.requests, "get", lambda *args, **kwargs: response
+    )
     result = document_client.fetch_document_text(response.url)
     assert result["success"] is True
     assert "Guidance raised" in result["text"]
@@ -172,7 +193,9 @@ def test_document_client_enforces_declared_size_limit(monkeypatch):
         content=b"",
         raise_for_status=lambda: None,
     )
-    monkeypatch.setattr(document_client.requests, "get", lambda *args, **kwargs: response)
+    monkeypatch.setattr(
+        document_client.requests, "get", lambda *args, **kwargs: response
+    )
     result = document_client.fetch_document_text(response.url, max_bytes=100)
     assert result["success"] is False
     assert "size limit" in result["warnings"][0]
@@ -186,7 +209,9 @@ def test_document_client_rejects_redirect_outside_approved_chain(monkeypatch):
         content=b"",
         raise_for_status=lambda: None,
     )
-    monkeypatch.setattr(document_client.requests, "get", lambda *args, **kwargs: response)
+    monkeypatch.setattr(
+        document_client.requests, "get", lambda *args, **kwargs: response
+    )
     result = document_client.fetch_document_text(response.url)
     assert result["success"] is False
     assert "redirect" in result["warnings"][0].lower()
@@ -201,7 +226,9 @@ def test_document_client_stream_cap_stops_oversized_body(monkeypatch):
         iter_content=lambda chunk_size: iter([b"a" * 60, b"b" * 60]),
         raise_for_status=lambda: None,
     )
-    monkeypatch.setattr(document_client.requests, "get", lambda *args, **kwargs: response)
+    monkeypatch.setattr(
+        document_client.requests, "get", lambda *args, **kwargs: response
+    )
     result = document_client.fetch_document_text(response.url, max_bytes=100)
     assert result["success"] is False
     assert "size limit" in result["warnings"][0]
@@ -225,7 +252,9 @@ def test_analyst_consensus_uses_embedded_market_info_without_network(monkeypatch
     monkeypatch.setattr(
         external_research,
         "fetch_analyst_targets",
-        lambda _symbol: (_ for _ in ()).throw(AssertionError("network fallback should not run")),
+        lambda _symbol: (_ for _ in ()).throw(
+            AssertionError("network fallback should not run")
+        ),
     )
     data = market_data()
     data["price"] = 4000
@@ -253,7 +282,9 @@ def test_recent_news_normalizes_current_yfinance_shape(monkeypatch):
                     "provider": {"displayName": "Exchange News"},
                     "pubDate": "2026-07-11T10:00:00Z",
                     "summary": "The company announced a material contract.",
-                    "canonicalUrl": {"url": "https://finance.yahoo.com/news/tcs-contract"},
+                    "canonicalUrl": {
+                        "url": "https://finance.yahoo.com/news/tcs-contract"
+                    },
                 }
             }
         ],

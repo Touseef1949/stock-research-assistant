@@ -3,7 +3,7 @@
 Run: pytest tests/test_yf_client.py -v
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import requests as requests_lib
@@ -64,16 +64,19 @@ def test_rate_limit_error_can_be_caught():
 
 
 # ── _is_rate_limit_error ──
-@pytest.mark.parametrize("msg", [
-    "too many requests",
-    "rate limit exceeded",
-    "rate limited",
-    "429",
-    "unauthorized",
-    "blocked",
-    "forbidden",
-    "yfratelimiterror: something",
-])
+@pytest.mark.parametrize(
+    "msg",
+    [
+        "too many requests",
+        "rate limit exceeded",
+        "rate limited",
+        "429",
+        "unauthorized",
+        "blocked",
+        "forbidden",
+        "yfratelimiterror: something",
+    ],
+)
 def test_is_rate_limit_error_detects_marker(msg):
     exc = Exception(msg)
     assert _is_rate_limit_error(exc) is True

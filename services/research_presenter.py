@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 WORKFLOW_CHOICES: dict[str, dict[str, str]] = {
     "Auto-select": {
         "command": "",
@@ -68,9 +67,17 @@ def build_research_query(symbol: str, workflow_label: str, question: str = "") -
 
     if command:
         context = f"{command} {clean_symbol}".strip()
-        return f"{context}. Decision context: {clean_question}" if clean_question else context
+        return (
+            f"{context}. Decision context: {clean_question}"
+            if clean_question
+            else context
+        )
     if clean_question:
-        return f"{clean_question} for {clean_symbol}" if clean_symbol.lower() not in clean_question.lower() else clean_question
+        return (
+            f"{clean_question} for {clean_symbol}"
+            if clean_symbol.lower() not in clean_question.lower()
+            else clean_question
+        )
     return f"/snapshot {clean_symbol}".strip()
 
 
@@ -78,8 +85,14 @@ def workflow_overview(workflow: dict[str, Any] | None) -> dict[str, Any]:
     workflow = workflow if isinstance(workflow, dict) else {}
     route = workflow.get("route") if isinstance(workflow.get("route"), dict) else {}
     skills = route.get("skills") or []
-    evidence = workflow.get("evidence") if isinstance(workflow.get("evidence"), list) else []
-    tools = workflow.get("tool_results") if isinstance(workflow.get("tool_results"), list) else []
+    evidence = (
+        workflow.get("evidence") if isinstance(workflow.get("evidence"), list) else []
+    )
+    tools = (
+        workflow.get("tool_results")
+        if isinstance(workflow.get("tool_results"), list)
+        else []
+    )
     sources = sorted(
         {
             str(item.get("source"))

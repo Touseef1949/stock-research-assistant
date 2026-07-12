@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-
 Confidence = Literal["high", "medium", "low"]
 RouteMode = Literal["direct", "workflow"]
 
@@ -57,7 +56,11 @@ class ToolResult:
         return payload
 
     def audit_dict(self) -> dict[str, Any]:
-        data_keys = sorted(str(key) for key in self.data.keys()) if isinstance(self.data, dict) else []
+        data_keys = (
+            sorted(str(key) for key in self.data.keys())
+            if isinstance(self.data, dict)
+            else []
+        )
         return {
             "tool_name": self.tool_name,
             "success": self.success,
@@ -90,7 +93,9 @@ class RouteDecision:
 class TraceEvent:
     """Auditable action record; intentionally excludes hidden model reasoning."""
 
-    event_type: Literal["route", "skill", "tool", "quality_gate", "synthesis", "validation", "warning"]
+    event_type: Literal[
+        "route", "skill", "tool", "quality_gate", "synthesis", "validation", "warning"
+    ]
     name: str
     status: Literal["started", "completed", "failed", "skipped"]
     detail: str = ""
@@ -124,7 +129,9 @@ class WorkflowResult:
             "when_to_use": str(skill.get("when_to_use") or ""),
             "command": str(skill.get("command") or ""),
             "required_tools": [str(item) for item in skill.get("required_tools") or []],
-            "supporting_skills": [str(item) for item in skill.get("supporting_skills") or []],
+            "supporting_skills": [
+                str(item) for item in skill.get("supporting_skills") or []
+            ],
             "procedure_excerpt": excerpt,
         }
 

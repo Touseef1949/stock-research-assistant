@@ -129,7 +129,9 @@ def executive_verdict_strip(data: dict[str, Any], result: dict[str, Any]) -> Non
     )
 
 
-def kpi_card(label: str, value: str, delta: str | None = None, icon: str | None = None) -> None:
+def kpi_card(
+    label: str, value: str, delta: str | None = None, icon: str | None = None
+) -> None:
     title = f"{icon} {label}" if icon else label
     shadcn.metric_card(
         title=title,
@@ -228,7 +230,9 @@ def section_title(text: str) -> None:
     )
 
 
-def empty_state(title: str, description: str, steps: Iterable[str] | None = None) -> None:
+def empty_state(
+    title: str, description: str, steps: Iterable[str] | None = None
+) -> None:
     items = "".join(f"<li>{_safe(step)}</li>" for step in (steps or []))
     list_html = f"<ol>{items}</ol>" if items else ""
     st.markdown(

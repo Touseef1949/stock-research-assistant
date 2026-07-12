@@ -94,7 +94,9 @@ def test_registry_loads_bundled_skill_tools():
 def test_registry_handles_invalid_skill_without_breaking_catalog(tmp_path: Path):
     invalid = tmp_path / "invalid"
     invalid.mkdir()
-    (invalid / "SKILL.md").write_text("---\nname: broken: yaml:\n---\nbody", encoding="utf-8")
+    (invalid / "SKILL.md").write_text(
+        "---\nname: broken: yaml:\n---\nbody", encoding="utf-8"
+    )
     assert SkillRegistry(tmp_path).list_skills() == []
 
 
@@ -118,7 +120,9 @@ def test_market_tool_produces_normalized_evidence():
     assert result.success is True
     assert result.source == "yfinance"
     assert result.confidence == "high"
-    assert any(item.metric == "price" and item.value == 4000.0 for item in result.evidence)
+    assert any(
+        item.metric == "price" and item.value == 4000.0 for item in result.evidence
+    )
     assert all(item.as_of for item in result.evidence)
 
 
@@ -188,11 +192,18 @@ def test_earnings_tools_execute_and_report_source_gaps_without_being_skipped():
     assert any("No earnings transcript link" in warning for warning in result.warnings)
 
 
-def test_catalyst_workflow_loads_news_filings_transcript_and_consensus_tools(monkeypatch):
+def test_catalyst_workflow_loads_news_filings_transcript_and_consensus_tools(
+    monkeypatch,
+):
     from research_tools import TOOL_FUNCTIONS
     from core.research_contracts import ToolResult
 
-    names = ("get_recent_news", "get_filing_results", "get_earnings_transcript", "get_analyst_consensus")
+    names = (
+        "get_recent_news",
+        "get_filing_results",
+        "get_earnings_transcript",
+        "get_analyst_consensus",
+    )
     originals = {name: TOOL_FUNCTIONS[name] for name in names}
     try:
         for name in names:

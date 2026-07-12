@@ -59,7 +59,9 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
         session = object()
         user = type("User", (), {"id": "test-user"})()
 
-    def fake_run_analysis(symbol, api_key="", progress_callback=None, resolved=None, research_query=None):
+    def fake_run_analysis(
+        symbol, api_key="", progress_callback=None, resolved=None, research_query=None
+    ):
         calls.append(
             {
                 "symbol": symbol,
@@ -150,8 +152,16 @@ def app_auth_pipeline(monkeypatch) -> tuple[AppTest, list[dict]]:
     monkeypatch.setattr(payment, "save_auth", lambda email: None)
     monkeypatch.setattr(payment, "clear_auth", lambda: None)
     monkeypatch.setattr(payment, "require_payment", lambda email: True)
-    monkeypatch.setattr(payment, "track_usage", lambda email, event: calls.append({"usage": event, "email": email}))
-    monkeypatch.setattr(logic, "resolve_ticker", lambda symbol: {"symbol": "SBIN.NS", "name": "State Bank of India"})
+    monkeypatch.setattr(
+        payment,
+        "track_usage",
+        lambda email, event: calls.append({"usage": event, "email": email}),
+    )
+    monkeypatch.setattr(
+        logic,
+        "resolve_ticker",
+        lambda symbol: {"symbol": "SBIN.NS", "name": "State Bank of India"},
+    )
     monkeypatch.setattr(analysis_pipeline, "run_analysis", fake_run_analysis)
 
     at = AppTest.from_file("app.py")
@@ -180,8 +190,12 @@ def test_hero_analyze_runs_mocked_pipeline_and_renders_result(app_auth_pipeline)
 
 def test_selected_workflow_and_question_are_attached_to_report(app_auth_pipeline):
     at, _calls = app_auth_pipeline
-    at.selectbox(key="research_workflow_choice").select("Valuation scenarios").run(timeout=60)
-    at.text_area(key="research_question").set_value("What is priced in?").run(timeout=60)
+    at.selectbox(key="research_workflow_choice").select("Valuation scenarios").run(
+        timeout=60
+    )
+    at.text_area(key="research_question").set_value("What is priced in?").run(
+        timeout=60
+    )
 
     at.button(key="hero_analyze_button").click().run(timeout=120)
 
@@ -200,7 +214,9 @@ def test_sidebar_theme_toggle_branch(app_auth: AppTest):
     assert app_auth.session_state["theme"] == "dark"
 
 
-def test_sidebar_history_branch_renders_download_and_load_warning(monkeypatch, app_auth: AppTest):
+def test_sidebar_history_branch_renders_download_and_load_warning(
+    monkeypatch, app_auth: AppTest
+):
     import services.report_history as report_history_service
 
     history_item = {
@@ -212,7 +228,11 @@ def test_sidebar_history_branch_renders_download_and_load_warning(monkeypatch, a
         "timestamp": "missing-report",
         "email": "test@example.com",
     }
-    monkeypatch.setattr(report_history_service, "load_history_items", lambda *args, **kwargs: [history_item])
+    monkeypatch.setattr(
+        report_history_service,
+        "load_history_items",
+        lambda *args, **kwargs: [history_item],
+    )
     monkeypatch.setattr(
         report_history_service,
         "report_payload_from_history",
@@ -221,12 +241,16 @@ def test_sidebar_history_branch_renders_download_and_load_warning(monkeypatch, a
     app_auth.session_state["_history_email"] = ""
     app_auth.run(timeout=60)
 
-    assert app_auth.button(key="hist_btn_SBIN_missing-report").label.startswith("SBIN · BUY")
+    assert app_auth.button(key="hist_btn_SBIN_missing-report").label.startswith(
+        "SBIN · BUY"
+    )
     # st.download_button not directly exposed in AppTest — verify button renders instead
 
     app_auth.button(key="hist_btn_SBIN_missing-report").click().run(timeout=60)
 
-    assert any("Saved report could not be loaded" in str(w.value) for w in app_auth.warning)
+    assert any(
+        "Saved report could not be loaded" in str(w.value) for w in app_auth.warning
+    )
 
 
 def test_sample_report_preview_renders_for_selected_symbol(app_auth: AppTest):

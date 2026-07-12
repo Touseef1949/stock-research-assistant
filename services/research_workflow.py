@@ -18,7 +18,14 @@ def prepare_research_workflow(
     """Route a query, load procedures, execute available deterministic tools."""
     registry = registry or SkillRegistry()
     route = route_research_query(query, registry)
-    trace = [TraceEvent("route", route.direct_tool or ",".join(route.skills), "completed", route.reason)]
+    trace = [
+        TraceEvent(
+            "route",
+            route.direct_tool or ",".join(route.skills),
+            "completed",
+            route.reason,
+        )
+    ]
     loaded_skills: list[dict[str, Any]] = []
     requested_tools: list[str] = []
 
@@ -28,11 +35,17 @@ def prepare_research_workflow(
         for skill_name in route.skills:
             skill = registry.get(skill_name)
             if skill is None:
-                trace.append(TraceEvent("skill", skill_name, "failed", "Skill was not found"))
+                trace.append(
+                    TraceEvent("skill", skill_name, "failed", "Skill was not found")
+                )
                 continue
             loaded_skills.append(skill.loaded_entry())
             requested_tools.extend(skill.required_tools)
-            trace.append(TraceEvent("skill", skill.name, "completed", "Procedure loaded on demand"))
+            trace.append(
+                TraceEvent(
+                    "skill", skill.name, "completed", "Procedure loaded on demand"
+                )
+            )
 
     tool_results = []
     warnings: list[str] = []
@@ -47,9 +60,23 @@ def prepare_research_workflow(
             result = tool(market_data)
             tool_results.append(result)
             warnings.extend(result.warnings)
-            trace.append(TraceEvent("tool", tool_name, "completed" if result.success else "failed", result.source))
+            trace.append(
+                TraceEvent(
+                    "tool",
+                    tool_name,
+                    "completed" if result.success else "failed",
+                    result.source,
+                )
+            )
             if result.confidence == "low":
-                trace.append(TraceEvent("quality_gate", tool_name, "completed", "Low-confidence result; conclusions must be qualified"))
+                trace.append(
+                    TraceEvent(
+                        "quality_gate",
+                        tool_name,
+                        "completed",
+                        "Low-confidence result; conclusions must be qualified",
+                    )
+                )
         except Exception as exc:
             warning = f"{tool_name} failed: {exc}"
             warnings.append(warning)

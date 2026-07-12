@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 
 import pandas as pd
@@ -21,12 +20,22 @@ def _fresh_modules(monkeypatch: pytest.MonkeyPatch, require_auth: bool = True) -
         sys.modules.pop(module_name, None)
 
 
-def _patch_payment(monkeypatch: pytest.MonkeyPatch, *, offline: bool = False, send_ok: bool = True, verify_ok: bool = True) -> None:
+def _patch_payment(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    offline: bool = False,
+    send_ok: bool = True,
+    verify_ok: bool = True,
+) -> None:
     import payment
 
     monkeypatch.setattr(payment, "_supabase_offline", lambda: offline)
     monkeypatch.setattr(payment, "send_otp", lambda email: send_ok)
-    monkeypatch.setattr(payment, "verify_otp", lambda email, token: AuthResponse() if verify_ok else None)
+    monkeypatch.setattr(
+        payment,
+        "verify_otp",
+        lambda email, token: AuthResponse() if verify_ok else None,
+    )
     monkeypatch.setattr(payment, "_ensure_user_row", lambda email, user_id=None: None)
     monkeypatch.setattr(payment, "load_auth", lambda: None)
     monkeypatch.setattr(payment, "save_auth", lambda email: None)
@@ -49,8 +58,12 @@ def _patch_report_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
     import deep_research.report as deep_report
     import services.report_history as report_history_service
 
-    monkeypatch.setattr(deep_report, "build_enhanced_pdf", lambda *args, **kwargs: b"deep pdf")
-    monkeypatch.setattr(report_history_service, "load_history_items", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        deep_report, "build_enhanced_pdf", lambda *args, **kwargs: b"deep pdf"
+    )
+    monkeypatch.setattr(
+        report_history_service, "load_history_items", lambda *args, **kwargs: []
+    )
 
 
 @pytest.fixture()
@@ -131,7 +144,9 @@ def _quick_result() -> dict:
 
 
 @pytest.mark.skip(reason="REQUIRE_AUTH module-level constant not easily mockable")
-def test_beta_mode_auth_gate_skips_login_and_shows_beta_access(monkeypatch: pytest.MonkeyPatch):
+def test_beta_mode_auth_gate_skips_login_and_shows_beta_access(
+    monkeypatch: pytest.MonkeyPatch,
+):
     _fresh_modules(monkeypatch, require_auth=False)
     _patch_payment(monkeypatch)
     _patch_report_helpers(monkeypatch)
@@ -142,12 +157,16 @@ def test_beta_mode_auth_gate_skips_login_and_shows_beta_access(monkeypatch: pyte
     assert at.session_state["user_email"] == "beta-user@sra.local"
     assert at.session_state["_auth_verified"] is True
     assert any("Free during beta" in str(item.value) for item in at.success)
-    assert any("No login required - open access" in str(item.value) for item in at.caption)
+    assert any(
+        "No login required - open access" in str(item.value) for item in at.caption
+    )
     with pytest.raises(KeyError):
         at.text_input(key="_email_input")
 
 
-def test_otp_send_failure_and_invalid_verification_branches(monkeypatch: pytest.MonkeyPatch):
+def test_otp_send_failure_and_invalid_verification_branches(
+    monkeypatch: pytest.MonkeyPatch,
+):
     _fresh_modules(monkeypatch, require_auth=True)
     _patch_payment(monkeypatch, send_ok=False, verify_ok=False)
     _patch_report_helpers(monkeypatch)
@@ -169,14 +188,24 @@ def test_otp_send_failure_and_invalid_verification_branches(monkeypatch: pytest.
 
 
 @pytest.mark.skip(reason="requires Supabase session mock")
-def test_research_setup_defaults_suggestions_and_sign_out(monkeypatch: pytest.MonkeyPatch):
+def test_research_setup_defaults_suggestions_and_sign_out(
+    monkeypatch: pytest.MonkeyPatch,
+):
     import logic
 
     _fresh_modules(monkeypatch, require_auth=True)
     _patch_payment(monkeypatch)
     _patch_report_helpers(monkeypatch)
-    monkeypatch.setattr(logic, "suggest_tickers", lambda symbol, limit=3: [{"symbol": "TCS.NS", "name": "Tata Consultancy Services"}])
-    monkeypatch.setattr(logic, "resolve_ticker", lambda symbol: {"symbol": "", "name": ""})
+    monkeypatch.setattr(
+        logic,
+        "suggest_tickers",
+        lambda symbol, limit=3: [
+            {"symbol": "TCS.NS", "name": "Tata Consultancy Services"}
+        ],
+    )
+    monkeypatch.setattr(
+        logic, "resolve_ticker", lambda symbol: {"symbol": "", "name": ""}
+    )
 
     at = AppTest.from_file("app.py")
     at.run(timeout=60)
@@ -190,10 +219,15 @@ def test_research_setup_defaults_suggestions_and_sign_out(monkeypatch: pytest.Mo
 
     at.text_input(key="symbol_input").set_value("tc").run(timeout=60)
 
-    assert any("Did you mean: TCS (Tata Consultancy Services)" in str(item.value) for item in at.caption)
+    assert any(
+        "Did you mean: TCS (Tata Consultancy Services)" in str(item.value)
+        for item in at.caption
+    )
 
 
-def test_sidebar_history_load_and_missing_report_warning(monkeypatch: pytest.MonkeyPatch):
+def test_sidebar_history_load_and_missing_report_warning(
+    monkeypatch: pytest.MonkeyPatch,
+):
     import services.report_history as report_history_service
 
     _fresh_modules(monkeypatch, require_auth=True)
@@ -208,8 +242,14 @@ def test_sidebar_history_load_and_missing_report_warning(monkeypatch: pytest.Mon
         "timestamp": "missing-report",
         "email": "test@example.com",
     }
-    monkeypatch.setattr(report_history_service, "load_history_items", lambda *args, **kwargs: [history_item])
-    monkeypatch.setattr(report_history_service, "load_report_payload", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        report_history_service,
+        "load_history_items",
+        lambda *args, **kwargs: [history_item],
+    )
+    monkeypatch.setattr(
+        report_history_service, "load_report_payload", lambda *args, **kwargs: None
+    )
     monkeypatch.setattr(
         report_history_service,
         "report_payload_from_history",
@@ -227,7 +267,9 @@ def test_sidebar_history_load_and_missing_report_warning(monkeypatch: pytest.Mon
 
     at.button(key="hist_btn_SBIN_missing-report").click().run(timeout=60)
 
-    assert any("Saved report could not be loaded" in str(item.value) for item in at.warning)
+    assert any(
+        "Saved report could not be loaded" in str(item.value) for item in at.warning
+    )
 
 
 def test_authenticated_research_path_access_badge_and_assurance(auth_app: AppTest):
@@ -238,7 +280,9 @@ def test_authenticated_research_path_access_badge_and_assurance(auth_app: AppTes
     assert "Search by NSE ticker or company name" in rendered
     assert "Source-traced output" in rendered
     assert "FREE plan" in captions
-    assert any("Verified as test@example.com" in str(item.value) for item in auth_app.success)
+    assert any(
+        "Verified as test@example.com" in str(item.value) for item in auth_app.success
+    )
 
 
 def test_sample_preview_symbol_edge_cases(auth_app: AppTest):
@@ -260,7 +304,9 @@ def test_render_result_free_plan_branch(auth_app: AppTest):
     rendered = "\n".join(str(item.value) for item in auth_app.markdown)
 
     assert "Mock SBI final report." in rendered
-    assert any("Deep Research is a Pro feature" in str(item.value) for item in auth_app.warning)
+    assert any(
+        "Deep Research is a Pro feature" in str(item.value) for item in auth_app.warning
+    )
     assert any("Upgrade to Pro" in str(item.value) for item in auth_app.info)
 
 
@@ -281,7 +327,9 @@ def test_beta_render_result_deep_research_branch(monkeypatch: pytest.MonkeyPatch
 
 
 @pytest.mark.skip(reason="mocked pipeline state not compatible with AppTest rerun")
-def test_deep_research_existing_sections_render_warnings_and_sensitivity(monkeypatch: pytest.MonkeyPatch):
+def test_deep_research_existing_sections_render_warnings_and_sensitivity(
+    monkeypatch: pytest.MonkeyPatch,
+):
     _fresh_modules(monkeypatch, require_auth=True)
     _patch_payment(monkeypatch)
     _patch_report_helpers(monkeypatch)
@@ -294,9 +342,22 @@ def test_deep_research_existing_sections_render_warnings_and_sensitivity(monkeyp
     at.session_state["sra_deep_research"] = {
         "SBIN.NS": {
             "peer_comparison": {"data": {"table": []}},
-            "analyst_targets": {"warnings": ["analyst warning"], "data": {"current_price": 750}},
-            "financial_trends": {"warnings": ["trend warning"], "data": {"figures": {}, "summary": [{"metric": "Revenue"}]}},
-            "risk_flags": {"warnings": ["risk warning"], "data": {"total_flags": 1, "total_checked": 2, "flags": [{"flag": "Debt"}]}},
+            "analyst_targets": {
+                "warnings": ["analyst warning"],
+                "data": {"current_price": 750},
+            },
+            "financial_trends": {
+                "warnings": ["trend warning"],
+                "data": {"figures": {}, "summary": [{"metric": "Revenue"}]},
+            },
+            "risk_flags": {
+                "warnings": ["risk warning"],
+                "data": {
+                    "total_flags": 1,
+                    "total_checked": 2,
+                    "flags": [{"flag": "Debt"}],
+                },
+            },
             "valuation": {
                 "warnings": ["valuation warning"],
                 "data": {

@@ -114,7 +114,9 @@ def agent_or_fallback(
         score = parse_score(content)
         if score is None:
             local = local_scores(data["fundamentals"], data["technicals"])[name]
-            content = f"SCORE: {local:.1f}/10\n{content}\n\nScore parser fallback applied."
+            content = (
+                f"SCORE: {local:.1f}/10\n{content}\n\nScore parser fallback applied."
+            )
             score = local
         return AgentResult(name=name, content=content, score=score, source="agent")
     except Exception as exc:
@@ -132,7 +134,9 @@ def run_agent_pipeline(
             progress_callback(70, "Assessing risk...")
             progress_callback(80, "Generating report...")
             progress_callback(95, None)
-        return run_local_pipeline(data, "Agno is not installed or could not be imported.")
+        return run_local_pipeline(
+            data, "Agno is not installed or could not be imported."
+        )
 
     model = DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.2)
     # Quick report mode: keep the pipeline fast and deterministic.
@@ -173,28 +177,36 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
             model=model,
             tools=[],
             instructions=shared_instructions
-            + ["Score valuation, quality, growth, profitability, and balance sheet strength from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says data is missing."],
+            + [
+                "Score valuation, quality, growth, profitability, and balance sheet strength from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says data is missing."
+            ],
         ),
         "Technicals": Agent(
             name="Technicals",
             model=model,
             tools=[],
             instructions=shared_instructions
-            + ["Score trend, momentum, levels, volume, and price action from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says price history is unavailable."],
+            + [
+                "Score trend, momentum, levels, volume, and price action from the provided context. Use only the supplied data; do not browse the web unless this prompt explicitly says price history is unavailable."
+            ],
         ),
         "Sentiment": Agent(
             name="Sentiment",
             model=model,
             tools=research_tools,
             instructions=shared_instructions
-            + ["Score sentiment from the provided context and recent price/momentum proxies only. Be explicit that quick-report mode does not fetch live news."],
+            + [
+                "Score sentiment from the provided context and recent price/momentum proxies only. Be explicit that quick-report mode does not fetch live news."
+            ],
         ),
         "Risk": Agent(
             name="Risk",
             model=model,
             tools=research_tools,
             instructions=shared_instructions
-            + ["Score risk where a higher score means lower risk and better risk/reward. Use only the supplied context and prior agent outputs; quick-report mode does not browse the web."],
+            + [
+                "Score risk where a higher score means lower risk and better risk/reward. Use only the supplied context and prior agent outputs; quick-report mode does not browse the web."
+            ],
         ),
         "Coordinator": Agent(
             name="Coordinator",
@@ -219,7 +231,9 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
 
     with ThreadPoolExecutor(max_workers=len(prompts)) as executor:
         futures = {
-            executor.submit(agent_or_fallback, name, agents[name], prompt, data, dependencies): name
+            executor.submit(
+                agent_or_fallback, name, agents[name], prompt, data, dependencies
+            ): name
             for name, prompt in prompts.items()
         }
         completed: dict[str, AgentResult] = {}
@@ -237,7 +251,9 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
         f"Analyze downside risk for {nse_symbol}.\n\nContext:\n{context}\n\n"
         f"Prior agent outputs:\n{format_agent_outputs(outputs)}"
     )
-    outputs["Risk"] = agent_or_fallback("Risk", agents["Risk"], risk_prompt, data, dependencies)
+    outputs["Risk"] = agent_or_fallback(
+        "Risk", agents["Risk"], risk_prompt, data, dependencies
+    )
     if progress_callback:
         progress_callback(80, "Generating report...")
 
@@ -249,7 +265,9 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
         f"Agent outputs:\n{format_agent_outputs(outputs)}"
     )
     try:
-        final_report = run_agent(agents["Coordinator"], coordinator_prompt, dependencies)
+        final_report = run_agent(
+            agents["Coordinator"], coordinator_prompt, dependencies
+        )
         if not final_report:
             raise RuntimeError("Coordinator returned an empty response.")
     except Exception as exc:
@@ -290,7 +308,9 @@ def format_agent_outputs(outputs: dict[str, AgentResult]) -> str:
     )
 
 
-def build_local_summary(data: dict[str, Any], outputs: dict[str, AgentResult], reason: str) -> str:
+def build_local_summary(
+    data: dict[str, Any], outputs: dict[str, AgentResult], reason: str
+) -> str:
     composite = composite_score({name: r.score for name, r in outputs.items()})
     verdict, _ = verdict_for_score(composite)
     t = data["technicals"]
@@ -307,7 +327,9 @@ Local fallback mode: {reason}
 """.strip()
 
 
-def get_agent_output(result: dict[str, Any], data: dict[str, Any], name: str) -> AgentResult:
+def get_agent_output(
+    result: dict[str, Any], data: dict[str, Any], name: str
+) -> AgentResult:
     outputs = result.get("agent_outputs") or {}
     output = outputs.get(name)
     if isinstance(output, AgentResult):
@@ -316,7 +338,12 @@ def get_agent_output(result: dict[str, Any], data: dict[str, Any], name: str) ->
         return AgentResult(
             name=name,
             content=str(output.get("content") or "No agent notes were returned."),
-            score=clamp_score(output.get("score", local_scores(data["fundamentals"], data["technicals"])[name])),
+            score=clamp_score(
+                output.get(
+                    "score",
+                    local_scores(data["fundamentals"], data["technicals"])[name],
+                )
+            ),
             source=str(output.get("source") or "agent"),
         )
     return fallback_result(name, data, f"{name} agent output was unavailable.")
@@ -350,7 +377,9 @@ def run_analysis(
         if progress_callback:
             progress_callback(70, "Preparing direct evidence...")
             progress_callback(95, None)
-        result = run_local_pipeline(data, "Direct metric request; expensive agent synthesis was skipped.")
+        result = run_local_pipeline(
+            data, "Direct metric request; expensive agent synthesis was skipped."
+        )
     elif api_key:
         result = run_agent_pipeline(api_key, nse_symbol, data, progress_callback)
     else:

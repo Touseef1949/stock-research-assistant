@@ -1,6 +1,11 @@
 """Release-gate tests for workflow routing and evidence grounding."""
 
-from eval.run_research_evals import evaluate_grounding, evaluate_routing, load_cases, run_all_evals
+from eval.run_research_evals import (
+    evaluate_grounding,
+    evaluate_routing,
+    load_cases,
+    run_all_evals,
+)
 
 
 def test_routing_eval_meets_release_threshold():

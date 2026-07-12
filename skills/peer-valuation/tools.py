@@ -6,9 +6,13 @@ from statistics import median
 from typing import Any
 
 
-def calculate_peer_premium(subject_value: float, peer_values: list[float]) -> dict[str, Any]:
+def calculate_peer_premium(
+    subject_value: float, peer_values: list[float]
+) -> dict[str, Any]:
     """Return peer median and the subject's percentage premium or discount."""
-    clean = sorted(float(value) for value in peer_values if value is not None and float(value) > 0)
+    clean = sorted(
+        float(value) for value in peer_values if value is not None and float(value) > 0
+    )
     if not clean:
         raise ValueError("At least one positive peer value is required.")
     peer_median = median(clean)
