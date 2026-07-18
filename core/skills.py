@@ -85,9 +85,7 @@ class SkillRegistry:
             if not skill_file.is_file():
                 continue
             try:
-                front, body = parse_skill_markdown(
-                    skill_file.read_text(encoding="utf-8")
-                )
+                front, body = parse_skill_markdown(skill_file.read_text(encoding="utf-8"))
             except OSError:
                 continue
             name = str(front.get("name") or directory.name).strip()
@@ -123,9 +121,7 @@ class SkillRegistry:
         return [skill.catalog_entry() for skill in self.list_skills()]
 
     def prompt_catalog(self) -> str:
-        return "\n".join(
-            f"- {skill.name}: {skill.description}" for skill in self.list_skills()
-        )
+        return "\n".join(f"- {skill.name}: {skill.description}" for skill in self.list_skills())
 
     def load(self, name: str) -> dict[str, Any] | None:
         skill = self.get(name)
@@ -141,9 +137,7 @@ class SkillRegistry:
         found: dict[str, Any] = {}
         if path.is_file():
             try:
-                spec = importlib.util.spec_from_file_location(
-                    f"research_skill_{skill.slug}", path
-                )
+                spec = importlib.util.spec_from_file_location(f"research_skill_{skill.slug}", path)
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)

@@ -100,9 +100,7 @@ def _is_simple_fact(query: str) -> bool:
     return len(words) <= 14 and not complex_markers.intersection(words)
 
 
-def route_research_query(
-    query: str, registry: SkillRegistry | None = None
-) -> RouteDecision:
+def route_research_query(query: str, registry: SkillRegistry | None = None) -> RouteDecision:
     registry = registry or SkillRegistry()
     normalized = " ".join((query or "").strip().lower().split())
 

@@ -82,23 +82,17 @@ def get_filing_results(data: dict[str, Any]) -> ToolResult:
         result.get("success")
         and any(values.get(key) for key in ("quarterly_results", "profit_loss"))
     )
-    confidence = (
-        "high" if source == "screener" and success else "medium" if success else "low"
-    )
+    confidence = "high" if source == "screener" and success else "medium" if success else "low"
     warnings = [str(item) for item in result.get("warnings") or []]
     if not success:
-        warnings.append(
-            "No structured filing/results data was available for this security."
-        )
+        warnings.append("No structured filing/results data was available for this security.")
     return ToolResult(
         tool_name="get_filing_results",
         success=success,
         symbol=symbol,
         source=source,
         data={**values, "source_url": source_url},
-        evidence=_evidence(
-            symbol, "get_filing_results", source, source_url, values, confidence
-        ),
+        evidence=_evidence(symbol, "get_filing_results", source, source_url, values, confidence),
         confidence=confidence,
         is_fallback=source != "screener",
         warnings=list(dict.fromkeys(warnings)),
@@ -110,9 +104,7 @@ def get_peer_metrics(data: dict[str, Any]) -> ToolResult:
     financials = _financials(data)
     payload = financials.get("data") if isinstance(financials.get("data"), dict) else {}
     source_url = str(payload.get("url") or "")
-    screener_peers = (
-        payload.get("peers") if isinstance(payload.get("peers"), list) else []
-    )
+    screener_peers = payload.get("peers") if isinstance(payload.get("peers"), list) else []
     base_symbol = symbol.removesuffix(".NS").removesuffix(".BO")
     screener_peers = [
         peer
@@ -124,9 +116,7 @@ def get_peer_metrics(data: dict[str, Any]) -> ToolResult:
 
     if peer_tickers:
         comparison = build_peer_comparison(symbol, peer_tickers, data, financials)
-        comparison_data = (
-            comparison.get("data") if isinstance(comparison.get("data"), dict) else {}
-        )
+        comparison_data = comparison.get("data") if isinstance(comparison.get("data"), dict) else {}
         values = {
             "target": comparison_data.get("target"),
             "peers": comparison_data.get("peers"),
@@ -145,18 +135,14 @@ def get_peer_metrics(data: dict[str, Any]) -> ToolResult:
                 "No public peer table was found; supply peer_tickers for a targeted comparison."
             )
 
-    confidence = (
-        "high" if success and source == "screener" else "medium" if success else "low"
-    )
+    confidence = "high" if success and source == "screener" else "medium" if success else "low"
     return ToolResult(
         tool_name="get_peer_metrics",
         success=success,
         symbol=symbol,
         source=source,
         data={**values, "source_url": source_url},
-        evidence=_evidence(
-            symbol, "get_peer_metrics", source, source_url, values, confidence
-        ),
+        evidence=_evidence(symbol, "get_peer_metrics", source, source_url, values, confidence),
         confidence=confidence,
         is_fallback=source != "screener",
         warnings=list(dict.fromkeys(warnings)),
@@ -167,13 +153,9 @@ def get_earnings_transcript(data: dict[str, Any]) -> ToolResult:
     symbol = _symbol(data)
     financials = _financials(data)
     payload = financials.get("data") if isinstance(financials.get("data"), dict) else {}
-    documents = (
-        payload.get("documents") if isinstance(payload.get("documents"), dict) else {}
-    )
+    documents = payload.get("documents") if isinstance(payload.get("documents"), dict) else {}
     transcripts = (
-        documents.get("transcripts")
-        if isinstance(documents.get("transcripts"), list)
-        else []
+        documents.get("transcripts") if isinstance(documents.get("transcripts"), list) else []
     )
     warnings = [str(item) for item in financials.get("warnings") or []]
     if not transcripts:
@@ -191,9 +173,7 @@ def get_earnings_transcript(data: dict[str, Any]) -> ToolResult:
         )
 
     transcript_documents = [
-        item
-        for item in transcripts
-        if "transcript" in str(item.get("title") or "").lower()
+        item for item in transcripts if "transcript" in str(item.get("title") or "").lower()
     ]
     latest = (transcript_documents or transcripts)[0]
     document = fetch_document_text(str(latest.get("url") or ""))
@@ -231,13 +211,10 @@ def get_analyst_consensus(data: dict[str, Any]) -> ToolResult:
     symbol = _symbol(data)
     info = data.get("info") if isinstance(data.get("info"), dict) else {}
     if any(
-        key in info
-        for key in ("targetMeanPrice", "numberOfAnalystOpinions", "recommendationKey")
+        key in info for key in ("targetMeanPrice", "numberOfAnalystOpinions", "recommendationKey")
     ):
         current_price = (
-            info.get("currentPrice")
-            or info.get("regularMarketPrice")
-            or data.get("price")
+            info.get("currentPrice") or info.get("regularMarketPrice") or data.get("price")
         )
         target_mean = info.get("targetMeanPrice")
         try:
@@ -280,9 +257,7 @@ def get_analyst_consensus(data: dict[str, Any]) -> ToolResult:
         symbol=symbol,
         source="yfinance",
         data=payload,
-        evidence=_evidence(
-            symbol, "get_analyst_consensus", "yfinance", "", payload, confidence
-        ),
+        evidence=_evidence(symbol, "get_analyst_consensus", "yfinance", "", payload, confidence),
         confidence=confidence,
         warnings=list(dict.fromkeys(warnings)),
     )
@@ -290,18 +265,10 @@ def get_analyst_consensus(data: dict[str, Any]) -> ToolResult:
 
 def _normalize_news_item(item: dict[str, Any]) -> dict[str, Any] | None:
     content = item.get("content") if isinstance(item.get("content"), dict) else item
-    provider = (
-        content.get("provider") if isinstance(content.get("provider"), dict) else {}
-    )
-    canonical = (
-        content.get("canonicalUrl")
-        if isinstance(content.get("canonicalUrl"), dict)
-        else {}
-    )
+    provider = content.get("provider") if isinstance(content.get("provider"), dict) else {}
+    canonical = content.get("canonicalUrl") if isinstance(content.get("canonicalUrl"), dict) else {}
     clickthrough = (
-        content.get("clickThroughUrl")
-        if isinstance(content.get("clickThroughUrl"), dict)
-        else {}
+        content.get("clickThroughUrl") if isinstance(content.get("clickThroughUrl"), dict) else {}
     )
     title = str(content.get("title") or item.get("title") or "").strip()
     if not title:
@@ -311,10 +278,7 @@ def _normalize_news_item(item: dict[str, Any]) -> dict[str, Any] | None:
         "publisher": provider.get("displayName") or item.get("publisher") or "Unknown",
         "published_at": content.get("pubDate") or item.get("providerPublishTime"),
         "summary": content.get("summary") or content.get("description") or "",
-        "url": canonical.get("url")
-        or clickthrough.get("url")
-        or item.get("link")
-        or "",
+        "url": canonical.get("url") or clickthrough.get("url") or item.get("link") or "",
     }
 
 
@@ -337,9 +301,7 @@ def get_recent_news(data: dict[str, Any]) -> ToolResult:
         if (normalized := _normalize_news_item(item))
     ]
     if not items:
-        warnings.append(
-            "No recent structured news items were available for this security."
-        )
+        warnings.append("No recent structured news items were available for this security.")
     evidence = [
         Evidence(
             evidence_id=f"{symbol or 'UNKNOWN'}-get_recent_news-{index:03d}",

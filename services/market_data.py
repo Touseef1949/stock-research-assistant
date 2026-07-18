@@ -20,7 +20,6 @@ from logic import display_symbol, safe_float, compute_rsi, compute_macd
 from deep_research.screener_client import fetch_screener_financials
 from yf_client import (
     YFinanceRateLimitError,
-    is_rate_limit_error,
     ticker_history,
     ticker_info,
 )
@@ -60,7 +59,6 @@ def _market_data_from_screener(nse_symbol: str) -> dict[str, Any]:
     book_value = safe_float(ratios.get("book_value"))
     price_to_book = (price / book_value) if book_value else None
     roe_pct = safe_float(ratios.get("roe_pct"))
-    roce_pct = safe_float(ratios.get("roce_pct"))
     debt_to_equity = safe_float(ratios.get("debt_to_equity"))
     dividend_yield = safe_float(ratios.get("dividend_yield"))
     if dividend_yield is not None and dividend_yield > 1:
@@ -206,8 +204,7 @@ def _market_data_from_web_search(nse_symbol: str, reason: str = "") -> dict[str,
 
     details = f" Details: {reason}" if reason else ""
     raise RuntimeError(
-        "Yahoo Finance, Screener.in, and web fallback are unreachable for "
-        f"{nse_symbol}.{details}"
+        f"Yahoo Finance, Screener.in, and web fallback are unreachable for {nse_symbol}.{details}"
     )
 
 
@@ -240,7 +237,7 @@ def _price_from_google_finance(symbol: str) -> float | None:
     main_quote_pattern = (
         r'<div class="gO24Ff">[^<]+</div>\s*</div>\s*'
         r'<div class="LhDNu">.*?jsname="Pdsbrc"[^>]*>\s*'
-        r'<span>\s*(?:₹|Rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)\s*</span>'
+        r"<span>\s*(?:₹|Rs\.?)?\s*([0-9,]+(?:\.[0-9]+)?)\s*</span>"
     )
     match = re.search(main_quote_pattern, html, flags=re.S)
     if not match:
@@ -281,6 +278,7 @@ def _price_from_ddgs_snippets(symbol: str) -> float | None:
     """Try to extract a current price from web search snippets."""
     try:
         from ddgs import DDGS
+
         with DDGS() as ddgs:
             results = list(ddgs.text(f"{symbol} NSE share price today", max_results=5))
         for result in results:

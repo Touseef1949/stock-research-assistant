@@ -134,9 +134,7 @@ def get_technical_metrics(data: dict[str, Any]) -> ToolResult:
         "max_drawdown_pct",
         "volatility_60d_pct",
     )
-    return _result(
-        "get_technical_metrics", data, {key: t.get(key) for key in keys}, technical=True
-    )
+    return _result("get_technical_metrics", data, {key: t.get(key) for key in keys}, technical=True)
 
 
 def evaluate_risk_flags(data: dict[str, Any]) -> ToolResult:

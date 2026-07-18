@@ -6,63 +6,47 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: stock-research-assistant-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.13"
+          python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install locked development dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-timeout
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.lock
 
-      - name: Run tests with coverage
+      - name: Run local quality gate
         env:
           REQUIRE_AUTH: "true"
-        run: |
-          python -m pytest tests/ -q --tb=short \
-            --cov=. --cov-report=term-missing:skip-covered \
-            --cov-report=json \
-            -k "not slow" \
-            --timeout=120
-
-      - name: Coverage gate (≥90%)
-        run: |
-          python -c "
-          import json
-          with open('coverage.json') as f:
-              data = json.load(f)
-          total = data['totals']['percent_covered']
-          print(f'Coverage: {total:.1f}%')
-          assert total >= 90.0, f'Coverage {total:.1f}% below 90% gate'
-          print('Coverage gate passed')
-          "
-
-      - name: Research routing and grounding gate
-        env:
-          REQUIRE_AUTH: "true"
-        run: python eval/run_research_evals.py
+        run: ./scripts/quality.sh
 
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml

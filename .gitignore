@@ -10,6 +10,9 @@ outputs/
 .DS_Store
 .codegraph/
 .coverage
+coverage.json
 .streamlit/secrets.toml
 logs/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/

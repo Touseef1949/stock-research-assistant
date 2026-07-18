@@ -49,9 +49,7 @@ def log_error(
     }
 
     if exc is not None:
-        entry["traceback"] = "".join(
-            traceback.format_exception(type(exc), exc, exc.__traceback__)
-        )
+        entry["traceback"] = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
 
     try:
         with open(LOG_FILE, "a") as f:

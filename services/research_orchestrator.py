@@ -6,6 +6,7 @@ import json
 import re
 from typing import Any
 
+from core.ai_policy import RESEARCH_PROMPT_VERSION, TEXT_MODEL_ID
 from core.research_contracts import (
     Evidence,
     ResearchResponse,
@@ -38,9 +39,7 @@ def _display_value(value: Any, max_chars: int = 180) -> str:
 
 
 def _scalar_evidence(evidence: list[Evidence]) -> list[Evidence]:
-    scalar = [
-        item for item in evidence if isinstance(item.value, (str, int, float, bool))
-    ]
+    scalar = [item for item in evidence if isinstance(item.value, (str, int, float, bool))]
     return scalar or evidence
 
 
@@ -75,7 +74,9 @@ def _direct_answer(query: str, workflow: WorkflowResult) -> str:
     metric = item.metric.replace("_", " ").title()
     qualification = ""
     if item.confidence == "low":
-        qualification = " Confidence is low because the underlying source is incomplete or a fallback."
+        qualification = (
+            " Confidence is low because the underlying source is incomplete or a fallback."
+        )
     return (
         f"**{metric}: {_display_value(item.value)}** [{item.evidence_id}]\n\n"
         f"Source: {item.source}; as of {item.as_of}.{qualification}"
@@ -85,11 +86,7 @@ def _direct_answer(query: str, workflow: WorkflowResult) -> str:
 def _fallback_workflow_answer(
     workflow: WorkflowResult,
 ) -> str:
-    selected = (
-        ", ".join(workflow.route.skills)
-        or workflow.route.direct_tool
-        or "stock research"
-    )
+    selected = ", ".join(workflow.route.skills) or workflow.route.direct_tool or "stock research"
     lines = [f"## {selected.replace('-', ' ').title()}"]
 
     observations = _scalar_evidence(workflow.evidence)[:14]
@@ -97,9 +94,7 @@ def _fallback_workflow_answer(
         lines.extend(["", "### Evidence-backed observations"])
         for item in observations:
             label = item.metric.replace("_", " ").title()
-            lines.append(
-                f"- **{label}:** {_display_value(item.value)} [{item.evidence_id}]"
-            )
+            lines.append(f"- **{label}:** {_display_value(item.value)} [{item.evidence_id}]")
 
     if workflow.warnings:
         lines.extend(["", "### Evidence gaps and qualifications"])
@@ -147,11 +142,11 @@ def _agent_answer(query: str, workflow: WorkflowResult, api_key: str) -> str:
     if Agent is None or DeepSeek is None:
         raise RuntimeError("Agno/DeepSeek is unavailable")
     procedures = "\n\n".join(
-        f"# {skill.get('name')}\n{skill.get('procedure', '')}"
-        for skill in workflow.loaded_skills
+        f"# {skill.get('name')}\n{skill.get('procedure', '')}" for skill in workflow.loaded_skills
     )
     evidence_ids = [item.evidence_id for item in workflow.evidence]
     prompt = f"""
+Prompt policy version: {RESEARCH_PROMPT_VERSION}
 Complete the selected public-equity research workflow for this request:
 {query}
 
@@ -173,7 +168,7 @@ Requirements:
 - Do not provide personalized investment instructions.
 """.strip()
     agent = Agent(
-        model=DeepSeek(id="deepseek-v4-flash", api_key=api_key, temperature=0.1),
+        model=DeepSeek(id=TEXT_MODEL_ID, api_key=api_key, temperature=0.1),
         instructions=[
             "You are an evidence-grounded Indian public-equity research orchestrator.",
             "Return a concise decision-ready Markdown report with inline evidence citations.",
@@ -211,9 +206,7 @@ def run_research_request(
             answer = _agent_answer(query, workflow, api_key)
             mode = "agent"
         except Exception as exc:
-            workflow.warnings.append(
-                f"Workflow synthesis fell back to deterministic mode: {exc}"
-            )
+            workflow.warnings.append(f"Workflow synthesis fell back to deterministic mode: {exc}")
             answer = _fallback_workflow_answer(workflow)
             mode = "fallback"
     else:

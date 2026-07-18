@@ -6,6 +6,7 @@ import sys
 import pytest
 
 os.environ["REQUIRE_AUTH"] = "true"
+os.environ["SRA_DISABLE_SYMBOL_MASTER_REFRESH"] = "1"
 
 # Force-reload payment/app modules so REQUIRE_AUTH picks up the env var
 for mod in list(sys.modules):

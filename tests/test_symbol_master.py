@@ -56,7 +56,9 @@ def test_symbol_master_exact_symbol_and_company_name_matches(tmp_path):
     cache_path = tmp_path / "symbol_master_nse.json"
     _write_cache(cache_path)
 
-    by_symbol = symbol_master.resolve_from_symbol_master("EIEL", cache_path=cache_path, refresh=False)
+    by_symbol = symbol_master.resolve_from_symbol_master(
+        "EIEL", cache_path=cache_path, refresh=False
+    )
     by_name = symbol_master.resolve_from_symbol_master(
         "Enviro Infra Engineers Limited",
         cache_path=cache_path,
@@ -76,8 +78,12 @@ def test_symbol_master_stripped_legal_suffix_matches(tmp_path):
     cache_path = tmp_path / "symbol_master_nse.json"
     _write_cache(cache_path)
 
-    eiel = symbol_master.resolve_from_symbol_master("EIEL Limited", cache_path=cache_path, refresh=False)
-    balu = symbol_master.resolve_from_symbol_master("Balu Forge", cache_path=cache_path, refresh=False)
+    eiel = symbol_master.resolve_from_symbol_master(
+        "EIEL Limited", cache_path=cache_path, refresh=False
+    )
+    balu = symbol_master.resolve_from_symbol_master(
+        "Balu Forge", cache_path=cache_path, refresh=False
+    )
 
     assert eiel["symbol"] == "EIEL.NS"
     assert eiel["source"] == "symbol_master_stripped"
@@ -100,7 +106,9 @@ def test_symbol_master_official_csv_refresh_and_symbol_change_alias(tmp_path, mo
     monkeypatch.setattr(symbol_master, "_fetch_url", fake_fetch)
 
     symbol_master.refresh_symbol_master(cache_path)
-    result = symbol_master.resolve_from_symbol_master("IIFLWAM", cache_path=cache_path, refresh=False)
+    result = symbol_master.resolve_from_symbol_master(
+        "IIFLWAM", cache_path=cache_path, refresh=False
+    )
 
     assert result["symbol"] == "360ONE.NS"
     assert result["name"] == "360 ONE WAM LIMITED"
@@ -121,6 +129,26 @@ def test_symbol_master_stale_cache_used_when_refresh_fails(tmp_path, monkeypatch
 
     assert data is not None
     assert result["symbol"] == "EIEL.NS"
+
+
+def test_symbol_master_test_mode_never_refreshes_tracked_cache(tmp_path, monkeypatch):
+    cache_path = tmp_path / "symbol_master_nse.json"
+    _write_cache(cache_path)
+    monkeypatch.setenv("SRA_DISABLE_SYMBOL_MASTER_REFRESH", "1")
+
+    def unexpected_refresh(_cache_path):
+        raise AssertionError("refresh must stay disabled in deterministic test mode")
+
+    monkeypatch.setattr(symbol_master, "refresh_symbol_master", unexpected_refresh)
+
+    data = symbol_master.load_symbol_master(
+        cache_path=cache_path,
+        ttl_seconds=0,
+        refresh=True,
+    )
+
+    assert data is not None
+    assert data["records"][0]["symbol"] == "EIEL"
 
 
 def test_symbol_master_garbage_stays_unresolved(tmp_path):

@@ -67,11 +67,7 @@ def build_research_query(symbol: str, workflow_label: str, question: str = "") -
 
     if command:
         context = f"{command} {clean_symbol}".strip()
-        return (
-            f"{context}. Decision context: {clean_question}"
-            if clean_question
-            else context
-        )
+        return f"{context}. Decision context: {clean_question}" if clean_question else context
     if clean_question:
         return (
             f"{clean_question} for {clean_symbol}"
@@ -85,20 +81,10 @@ def workflow_overview(workflow: dict[str, Any] | None) -> dict[str, Any]:
     workflow = workflow if isinstance(workflow, dict) else {}
     route = workflow.get("route") if isinstance(workflow.get("route"), dict) else {}
     skills = route.get("skills") or []
-    evidence = (
-        workflow.get("evidence") if isinstance(workflow.get("evidence"), list) else []
-    )
-    tools = (
-        workflow.get("tool_results")
-        if isinstance(workflow.get("tool_results"), list)
-        else []
-    )
+    evidence = workflow.get("evidence") if isinstance(workflow.get("evidence"), list) else []
+    tools = workflow.get("tool_results") if isinstance(workflow.get("tool_results"), list) else []
     sources = sorted(
-        {
-            str(item.get("source"))
-            for item in tools
-            if isinstance(item, dict) and item.get("source")
-        }
+        {str(item.get("source")) for item in tools if isinstance(item, dict) and item.get("source")}
     )
     return {
         "mode": str(route.get("mode") or "unavailable"),

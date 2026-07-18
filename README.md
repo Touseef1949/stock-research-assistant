@@ -9,129 +9,135 @@ pinned: false
 license: mit
 ---
 
-# Stock Research Assistant — Production Runbook
+# Stock Research Assistant
 
-> **Status**: Production-grade | Live at https://tshaik1990-stock-research-assistant.hf.space
+[Live app](https://tshaik1990-stock-research-assistant.hf.space) ·
+[Case study](https://touseefshaik.com/apps/stock-research-assistant.html) ·
+[Security policy](SECURITY.md) ·
+[Changelog](CHANGELOG.md)
+
+**Maturity:** public flagship, production-oriented, version 0.1.0.
+
+Stock Research Assistant helps self-directed investors examine an NSE/BSE
+company through multiple evidence-aware lenses: market context, fundamentals,
+technical context, peers, governance, valuation, catalysts, risks, and a
+structured thesis. It produces educational research, not investment advice,
+and never places orders.
+
+## Product flow
+
+1. Enter a supported NSE/BSE symbol.
+2. Choose a direct fact, standard analysis, or deeper research workflow.
+3. Inspect evidence links, source/confidence labels, warnings, and the trace.
+4. Export a report and independently verify material claims before deciding.
+
+The [public case study](https://touseefshaik.com/apps/stock-research-assistant.html)
+is the visual walkthrough.
 
 ## Architecture
 
-```
-Stock_Research_Assistant/
-├── app.py                    # Streamlit composition layer (3,869 lines)
-├── logic.py                  # Pure business logic (scoring, formatting)
-├── payment.py                # Supabase auth + Razorpay payments
-├── yf_client.py              # Yahoo Finance API client
-├── ui.py                     # Reusable Streamlit UI components
-├── core/
-│   ├── models.py             # Existing report models
-│   ├── skills.py             # Progressive SKILL.md registry
-│   ├── research_router.py    # Direct-vs-workflow routing
-│   ├── research_contracts.py # Evidence/tool/trace contracts
-│   └── research_validation.py# Evidence citation gate
-├── skills/                   # 9 decision-oriented research procedures
-├── research_tools/           # Normalized deterministic research tools
-├── services/
-│   ├── market_data.py        # YF/Screener/web fallback pipeline (96% coverage)
-│   ├── analysis_pipeline.py  # Agent pipeline + local fallback (90% coverage)
-│   ├── research_workflow.py  # Skill loading and tool execution
-│   ├── research_orchestrator.py # Grounded synthesis + fallback
-│   ├── document_client.py    # Bounded transcript extraction
-│   ├── report_history.py     # Report persistence + JSON serialization
-│   └── error_logging.py      # Structured JSONL error logging
-├── deep_research/            # Pro deep-research module (10 agents)
-├── eval/                     # Routing and grounding release gates
-├── docs/
-│   └── SKILL_ARCHITECTURE.md # Extension and operations guide
-├── tests/                    # Unit, integration, AppTest, and workflow eval tests
-├── scripts/
-│   └── health_monitor.py     # Uptime + error log health check
-├── .github/workflows/
-│   └── test.yml              # CI/CD: test gate + secrets scan
-├── .gitignore                # Blocks secrets.toml, logs/, pycache
-└── .gitleaks.toml            # Secrets detection rules
+```text
+Streamlit UI -> research router -> direct factual path OR skill workflow
+             -> normalized market/document/web tools
+             -> evidence contracts + citation validation
+             -> grounded model synthesis OR deterministic fallback
+             -> UI and PDF report
 ```
 
-## Quick Reference
+`core/` contains contracts, routing, validation, and the progressive skill
+registry. `research_tools/` normalizes evidence; `services/` orchestrates the
+workflow; `skills/` holds decision procedures; `eval/` is the deterministic
+routing/grounding release gate. See [RUNBOOK.md](RUNBOOK.md) and
+[docs/SKILL_ARCHITECTURE.md](docs/SKILL_ARCHITECTURE.md).
 
-| Task | Command |
-|------|---------|
-| Run tests | `/usr/local/bin/python3 -m pytest tests/ -q` |
-| Run research evals | `/usr/local/bin/python3 eval/run_research_evals.py` |
-| Coverage report | `/usr/local/bin/python3 -m pytest tests/ --cov=. --cov-report=term-missing` |
-| Deploy to HF Space | `git push hf main` (pre-push hook runs tests first) |
-| Health check | `/usr/local/bin/python3 scripts/health_monitor.py` |
-| View error log | `cat logs/errors.jsonl \| python3 -m json.tool` |
-| Skip pre-push tests | `git push hf main --no-verify` (emergencies only) |
+## Supported environment
 
-## Deploy Workflow
+- Python 3.11 (the Docker, CI, and supported local runtime).
+- A local virtual environment and internet access for dependency installation.
+- Provider keys for model-backed analysis; deterministic fallbacks remain
+  explicit when provider access is unavailable.
+- Optional Supabase/Razorpay configuration for auth/payment features.
 
-1. **Make changes** in `app.py`, `logic.py`, `services/`, etc.
-2. **Run tests locally**: `pytest tests/ -q`
-3. **Commit**: `git add . && git commit -m "feat: ..."`
-4. **Push to HF Space**: `git push hf main`
-   - Pre-push hook runs `pytest tests/ -q` automatically
-   - If tests fail, push is blocked. Fix failures or `--no-verify` (emergency).
-5. **Verify deploy**: Wait ~60 seconds, then check `https://tshaik1990-stock-research-assistant.hf.space`
+## Reproducible quick start
 
-## CI/CD (GitHub Actions)
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.lock
+streamlit run app.py
+```
 
-When the repo is connected to GitHub:
-- `.github/workflows/test.yml` runs on every push/PR
-- Test gate: all tests must pass + coverage ≥ 90%
-- Research gate: routing accuracy ≥90% and all grounding cases pass
-- Security: gitleaks scans for exposed API keys/secrets
+`requirements.in` declares compatible runtime dependencies. Exact runtime and
+development environments are in `requirements.lock` and
+`requirements-dev.lock`. `requirements.txt` mirrors the runtime lock because
+native Hugging Face Spaces mounts that file independently during its build.
+Regenerate with:
 
-## Monitoring
+```bash
+uv pip compile requirements.in -o requirements.lock --python-version 3.11
+uv pip compile requirements-dev.in -o requirements-dev.lock --python-version 3.11
+cp requirements.lock requirements.txt
+```
 
-**Health monitor** — runs every 4 hours (laptop-must-be-awake, cron job `41b047d120b5`):
-- Checks HF Space `/health` endpoint → HTTP 200
-- Checks error log for spike (>10 recent errors)
-- Alerts via Telegram on failure
+## Development quality gate
 
-**Error logging** — `services/error_logging.py`:
-- Writes structured JSONL to `logs/errors.jsonl`
-- Captured at: main exception handler in `app.py`
-- Auto-trimmed to 500 lines
-- View: `cat logs/errors.jsonl | python3 -m json.tool`
+```bash
+python -m pip install -r requirements-dev.lock
+./scripts/quality.sh
+```
 
-## Secrets Management
+This runs Ruff formatting/linting across core research boundaries, targeted
+mypy checks, compilation, deterministic tests with at least 90% coverage, and
+the research routing/grounding gate. CI executes the same command. Tests mock
+network/model paths; paid model judgement is not a pull-request requirement.
 
-- `.streamlit/secrets.toml` — **NEVER committed** (blocked by `.gitignore`)
-- `.gitleaks.toml` — config for automated secrets scanning
-- API keys loaded from `~/.hermes/.env` as fallback (for cron/local dev)
+The health/load paths never place orders or invoke model research:
 
-## Production Checklist
+```bash
+python scripts/health_monitor.py
+locust -f tests/load/locustfile.py \
+  --host=https://tshaik1990-stock-research-assistant.hf.space
+```
 
-- [x] Pre-push test hook
-- [x] CI/CD workflow (GitHub Actions)
-- [x] Health monitoring (4-hour cron)
-- [x] Structured error logging
-- [x] Secrets audit — git history clean
-- [x] `.gitignore` blocks secrets, logs, pycache
-- [x] `.gitleaks.toml` for automated scanning
-- [x] 95% code coverage (674 tests)
-- [x] Service modules extracted (market_data, analysis_pipeline, report_history)
-- [x] Mobile-responsive UI
-- [x] Institutional PDF reports
-- [x] Payment/auth layer (Razorpay + Supabase)
-- [x] Live Kite integration — live LTP + OHLC via Zerodha Kite, graceful fallback to yfinance
-- [x] Load testing — 10 concurrent users, 0 failures, median 230ms
-- [x] GitHub remote — https://github.com/Touseef1949/stock-research-assistant
-- [x] Progressive skill registry and lazy procedure loading
-- [x] Direct factual routing that skips expensive agent synthesis
-- [x] Evidence/source/confidence contracts and audit trace
-- [x] Peer, filing/results, and bounded transcript tools
-- [x] Citation validation with deterministic grounded fallback
-- [x] Routing and grounding evaluation gate
+## Versioned AI behavior and evaluation
 
-See [Skill-Driven Research Architecture](docs/SKILL_ARCHITECTURE.md) for the execution contract and extension guide.
+- Model: `deepseek-v4-flash` (`TEXT_MODEL_ID` in `core/ai_policy.py`).
+- Prompt policies: `sra-analysis-v1`, `sra-research-orchestrator-v1`, and
+  `sra-thesis-v1` in `core/ai_policy.py`.
+- Golden routing/grounding cases: `eval/workflow_cases.yaml`.
 
-## Troubleshooting
+The deterministic gate measures routing accuracy and evidence grounding.
+Correctness, safety, latency, and cost remain separate release considerations;
+one passing metric must not hide a regression in another.
 
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| "All data sources unreachable" | HF Spaces shared IP rate-limited by YF/Screener | Wait 1-2 min, retry |
-| Report shows "Local fallback" | DeepSeek API key missing or expired | Check `.streamlit/secrets.toml` |
-| Deep Research tab blank for free users | Expected — Pro feature | User upgrades to Pro |
-| Health monitor fails | HF Space cold start | Space auto-wakes on next request |
-| OTP not sending | Supabase config missing | Check `payment.py` Supabase keys |
+## Data, privacy, and trading boundaries
+
+- Public research uses approved market/web/document sources with explicit
+  warnings when evidence is missing or stale.
+- Kite is local-only for approved personal price data and is not a public SaaS
+  data source. Broker credentials and portfolios must never be committed.
+- The app has no order-placement path. Research output is educational and
+  requires independent verification.
+- Generated reports/history and authentication/payment records are private
+  operational data, not repository artifacts.
+
+See [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) for controls and residual risk.
+
+## Known limitations
+
+- Market providers can be delayed, rate-limited, inconsistent, or unavailable.
+- Web/issuer documents can change structure or contain adversarial text.
+- Models can omit evidence, misinterpret a source, or overstate confidence.
+- HF Spaces can cold-start; a health response does not prove research quality.
+- Scanned PDFs without embedded text require OCR, which is not run on the basic
+  hosted environment.
+
+## Release and deployment
+
+Pull requests must pass `quality` and `security`. Stable milestones use Semantic
+Versioning and [CHANGELOG.md](CHANGELOG.md). The tagged GitHub revision is then
+synchronized to the Hugging Face Space and verified through `/_stcore/health`
+and a public, non-transactional research journey.
+
+Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md). This project
+is licensed under the [MIT License](LICENSE).

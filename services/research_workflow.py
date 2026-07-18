@@ -35,17 +35,11 @@ def prepare_research_workflow(
         for skill_name in route.skills:
             skill = registry.get(skill_name)
             if skill is None:
-                trace.append(
-                    TraceEvent("skill", skill_name, "failed", "Skill was not found")
-                )
+                trace.append(TraceEvent("skill", skill_name, "failed", "Skill was not found"))
                 continue
             loaded_skills.append(skill.loaded_entry())
             requested_tools.extend(skill.required_tools)
-            trace.append(
-                TraceEvent(
-                    "skill", skill.name, "completed", "Procedure loaded on demand"
-                )
-            )
+            trace.append(TraceEvent("skill", skill.name, "completed", "Procedure loaded on demand"))
 
     tool_results = []
     warnings: list[str] = []

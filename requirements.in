@@ -1,0 +1,14 @@
+streamlit>=1.32.0
+streamlit-shadcn-ui>=0.1.18
+agno>=2.6.0
+yfinance>=0.2.40
+duckduckgo-search>=6.0
+ddgs>=7.0
+openai>=1.50.0
+plotly>=5.22.0
+pandas>=2.2.0
+python-dotenv>=1.0
+PyYAML>=6.0
+pypdf>=6.0
+supabase>=2.0
+fpdf2>=2.7.9

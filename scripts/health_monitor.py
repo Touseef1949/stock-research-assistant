@@ -84,7 +84,7 @@ def main() -> int:
     elif errors["fresh_errors"] > 0:
         print(f"ℹ️  {errors['fresh_errors']} recent errors in log")
     else:
-        print(f"✅ Error log clean")
+        print("✅ Error log clean")
 
     # 3. Overall verdict
     if not healthy:
