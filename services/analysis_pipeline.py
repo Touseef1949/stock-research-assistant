@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any, Callable
 
-from core.ai_policy import TEXT_MODEL_ID
+from core.ai_policy import ANALYSIS_PROMPT_VERSION, TEXT_MODEL_ID
 from core.models import AgentResult, SCORE_ORDER
 from logic import (
     clamp_score,
@@ -164,6 +164,7 @@ Note: Use web search (DuckDuckGo) for latest price action, news, and sector cont
     dependencies = {"symbol": nse_symbol, "context": context}
 
     shared_instructions = [
+        f"Prompt policy version: {ANALYSIS_PROMPT_VERSION}.",
         "Be concise and investment-research focused.",
         "Start the response with exactly: SCORE: X.X/10",
         "Use the provided market context. Do not invent unavailable figures.",

@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from core.ai_policy import TEXT_MODEL_ID
+from core.ai_policy import RESEARCH_PROMPT_VERSION, TEXT_MODEL_ID
 from core.research_contracts import (
     Evidence,
     ResearchResponse,
@@ -146,6 +146,7 @@ def _agent_answer(query: str, workflow: WorkflowResult, api_key: str) -> str:
     )
     evidence_ids = [item.evidence_id for item in workflow.evidence]
     prompt = f"""
+Prompt policy version: {RESEARCH_PROMPT_VERSION}
 Complete the selected public-equity research workflow for this request:
 {query}
 

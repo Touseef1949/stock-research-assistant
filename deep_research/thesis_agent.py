@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from core.ai_policy import TEXT_MODEL_ID
+from core.ai_policy import TEXT_MODEL_ID, THESIS_PROMPT_VERSION
+
 
 def _compact(obj: Any, max_chars: int = 12000) -> str:
     try:
@@ -96,6 +97,7 @@ def generate_investment_thesis(
     }
 
     prompt = f"""
+Prompt policy version: {THESIS_PROMPT_VERSION}
 You are an institutional equity research analyst for Indian listed equities.
 Use only the structured context below. Do not invent facts.
 
@@ -126,7 +128,12 @@ Context:
         parsed = _extract_json(str(content))
         if not parsed:
             warnings.append("DeepSeek response was not valid JSON; returned fallback thesis")
-            return {"success": True, "source": "fallback", "data": _fallback_thesis(symbol, "LLM returned non-JSON output"), "warnings": warnings}
+            return {
+                "success": True,
+                "source": "fallback",
+                "data": _fallback_thesis(symbol, "LLM returned non-JSON output"),
+                "warnings": warnings,
+            }
 
         clean = {
             "one_line_thesis": str(parsed.get("one_line_thesis") or ""),
