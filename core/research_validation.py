@@ -31,13 +31,9 @@ def validate_evidence_citations(
         warnings.append(f"Unknown evidence citations: {', '.join(invalid_ids)}")
     if missing_citations:
         if has_numeric_claims:
-            warnings.append(
-                "The answer contains numeric claims but no evidence citations."
-            )
+            warnings.append("The answer contains numeric claims but no evidence citations.")
         else:
-            warnings.append(
-                "The answer contains research claims but no evidence citations."
-            )
+            warnings.append("The answer contains research claims but no evidence citations.")
     if not valid_ids:
         warnings.append("No structured evidence was available to validate the answer.")
     return {

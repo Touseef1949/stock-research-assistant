@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from core.ai_policy import TEXT_MODEL_ID
 
 def _compact(obj: Any, max_chars: int = 12000) -> str:
     try:
@@ -112,7 +113,7 @@ Context:
 
     try:
         agent = Agent(
-            model=DeepSeek(id="deepseek-v4-flash", api_key=api_key),
+            model=DeepSeek(id=TEXT_MODEL_ID, api_key=api_key),
             instructions=[
                 "You produce concise, evidence-grounded Indian equity research.",
                 "Return JSON only. Do not include markdown fences.",

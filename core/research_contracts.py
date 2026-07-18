@@ -57,9 +57,7 @@ class ToolResult:
 
     def audit_dict(self) -> dict[str, Any]:
         data_keys = (
-            sorted(str(key) for key in self.data.keys())
-            if isinstance(self.data, dict)
-            else []
+            sorted(str(key) for key in self.data.keys()) if isinstance(self.data, dict) else []
         )
         return {
             "tool_name": self.tool_name,
@@ -129,9 +127,7 @@ class WorkflowResult:
             "when_to_use": str(skill.get("when_to_use") or ""),
             "command": str(skill.get("command") or ""),
             "required_tools": [str(item) for item in skill.get("required_tools") or []],
-            "supporting_skills": [
-                str(item) for item in skill.get("supporting_skills") or []
-            ],
+            "supporting_skills": [str(item) for item in skill.get("supporting_skills") or []],
             "procedure_excerpt": excerpt,
         }
 

@@ -124,7 +124,9 @@ def read_report_file(path: Path) -> dict[str, Any] | None:
 
 def enforce_report_cap(reports_dir: Path, max_report_files: int) -> None:
     try:
-        files = sorted(reports_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        files = sorted(
+            reports_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True
+        )
     except Exception:
         return
     for path in files[max_report_files:]:
@@ -167,13 +169,17 @@ def save_report(
         return None
 
 
-def load_history_items(reports_dir: Path, email: str, max_report_files: int) -> list[dict[str, Any]] | None:
+def load_history_items(
+    reports_dir: Path, email: str, max_report_files: int
+) -> list[dict[str, Any]] | None:
     clean_email = str(email or "").strip().lower()
     if not clean_email:
         return []
     try:
         reports_dir.mkdir(parents=True, exist_ok=True)
-        files = sorted(reports_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        files = sorted(
+            reports_dir.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True
+        )
     except Exception:
         return None
 
@@ -205,7 +211,9 @@ def load_history_items(reports_dir: Path, email: str, max_report_files: int) -> 
     return history
 
 
-def load_report_payload(reports_dir: Path, symbol: str, timestamp: str) -> tuple[dict[str, Any], dict[str, Any]] | None:
+def load_report_payload(
+    reports_dir: Path, symbol: str, timestamp: str
+) -> tuple[dict[str, Any], dict[str, Any]] | None:
     payload = read_report_file(report_path_for(reports_dir, symbol, timestamp))
     if not payload:
         return None
@@ -221,7 +229,9 @@ def report_payload_from_history(
     reports_dir: Path,
     download_builder: DownloadBuilder,
 ) -> tuple[bytes, str, str] | None:
-    payload = read_report_file(report_path_for(reports_dir, str(item.get("symbol", "")), str(item.get("timestamp", ""))))
+    payload = read_report_file(
+        report_path_for(reports_dir, str(item.get("symbol", "")), str(item.get("timestamp", "")))
+    )
     if not payload:
         return None
     data, result = restore_report_payload(payload)

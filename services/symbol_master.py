@@ -10,6 +10,7 @@ import csv
 import difflib
 import io
 import json
+import os
 import re
 import time
 import urllib.request
@@ -230,7 +231,8 @@ def load_symbol_master(
     if cached and time.time() - generated_at <= ttl_seconds:
         return cached
 
-    if refresh:
+    refresh_enabled = refresh and os.getenv("SRA_DISABLE_SYMBOL_MASTER_REFRESH") != "1"
+    if refresh_enabled:
         try:
             return refresh_symbol_master(cache_path)
         except Exception:
@@ -275,7 +277,9 @@ def _build_indexes(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_record(record: dict[str, Any], source: str) -> dict[str, str]:
-    return _ticker_result(str(record.get("symbol", "")).strip().upper(), str(record.get("name", "")).strip(), source)
+    return _ticker_result(
+        str(record.get("symbol", "")).strip().upper(), str(record.get("name", "")).strip(), source
+    )
 
 
 def suggest_from_symbol_master(
@@ -328,7 +332,9 @@ def suggest_from_symbol_master(
         if score >= 0.70:
             consider(record, score, "stripped")
 
-    ranked = sorted(scored.values(), key=lambda item: (-item[0], str(item[1].get("symbol", ""))))[: max(1, limit)]
+    ranked = sorted(scored.values(), key=lambda item: (-item[0], str(item[1].get("symbol", ""))))[
+        : max(1, limit)
+    ]
     return [
         {
             "symbol": f"{str(record.get('symbol', '')).strip().upper()}.NS",
