@@ -69,12 +69,14 @@ streamlit run app.py
 
 `requirements.in` declares compatible runtime dependencies. Exact runtime and
 development environments are in `requirements.lock` and
-`requirements-dev.lock`. `requirements.txt` makes the Docker/Hugging Face build
-consume the runtime lock. Regenerate with:
+`requirements-dev.lock`. `requirements.txt` mirrors the runtime lock because
+native Hugging Face Spaces mounts that file independently during its build.
+Regenerate with:
 
 ```bash
 uv pip compile requirements.in -o requirements.lock --python-version 3.11
 uv pip compile requirements-dev.in -o requirements-dev.lock --python-version 3.11
+cp requirements.lock requirements.txt
 ```
 
 ## Development quality gate
