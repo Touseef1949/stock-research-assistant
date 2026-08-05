@@ -46,7 +46,7 @@ click==8.4.2
     #   duckduckgo-search
     #   streamlit
     #   uvicorn
-cryptography==49.0.0
+cryptography==50.0.0
     # via pyjwt
 curl-cffi==0.15.0
     # via yfinance
@@ -87,7 +87,7 @@ httpcore==1.0.9
     # via httpx
 httptools==0.8.0
     # via streamlit
-httpx==0.28.1
+httpx[brotli,http2,socks]==0.28.1
     # via
     #   agno
     #   agnoctl
@@ -201,7 +201,7 @@ pydeck==0.9.3
     # via streamlit
 pygments==2.20.0
     # via rich
-pyjwt==2.13.0
+pyjwt[crypto]==2.13.0
     # via supabase-auth
 pypdf==6.14.2
     # via -r requirements.in
@@ -301,6 +301,8 @@ typing-inspection==0.4.2
 urllib3==2.7.0
     # via requests
 uvicorn==0.51.0
+    # via streamlit
+watchdog==6.0.0
     # via streamlit
 websockets==15.0.1
     # via
